@@ -103,6 +103,26 @@ body {
 }
 #live.on { display: block; }
 
+/* got through: the score, a beat to read it, and straight on. A card and a
+   button between every round is a tap you never wanted to make */
+#tally {
+    position: absolute; left: 0; right: 0; bottom: 11%; z-index: 9;
+    text-align: center; pointer-events: none; display: none; padding: 0 18px;
+}
+#tally.on { display: block; animation: tallyIn .3s cubic-bezier(.2, 1.4, .4, 1) both; }
+@keyframes tallyIn { from { transform: translateY(14px) scale(.9); opacity: 0; }
+                     to   { transform: none; opacity: 1; } }
+#tally .n {
+    display: block; font-family: var(--font-display); font-size: clamp(46px, 15vw, 64px);
+    line-height: 1; letter-spacing: .02em; color: var(--good);
+}
+#tally .n i { font-style: normal; font-size: .4em; opacity: .7; }
+#tally .l { display: block; font-family: var(--font-display); font-size: 24px; letter-spacing: .03em; }
+#tally .b {
+    display: block; font-family: var(--font); font-size: 11px; font-weight: 900;
+    letter-spacing: .05em; opacity: .45; margin-top: 4px;
+}
+
 /* ============================================================
    THE VERDICT
    ============================================================ */
@@ -317,6 +337,7 @@ body {
     <div id="clock"><svg class="ico"><use href="#i-clock"/></svg><span class="track"><i></i></span></div>
     <div id="banner"></div>
 
+    <div id="tally"></div>
     <div id="live">0.0</div>
     <div id="prompt">Draw a circle around the dot</div>
 
@@ -342,7 +363,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v28';
+const APP_VERSION = 'v30';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -428,71 +449,51 @@ const fanfare = () => safely(t => {
 const buzz = () => safely(t => tone(t, { freq: 210, to: 110, dur: .22, type: 'sawtooth', vol: .16 }));
 const tick = () => safely(t => tone(t, { freq: 1200, dur: .04, type: 'square', vol: .1 }));
 
-/* ---- the voice that goes round with you ------------------------------
-   Eleven and a half seconds of held note, which outlasts any stroke, so it
-   runs from the moment the pen goes down until it comes back up again.
-   The first play happens inside the touch handler, which is what iOS wants. */
-const OOH = new Audio('oooooooh.mp4');
-OOH.preload = 'auto';
-OOH.volume = .9;
-/* ---- the voices ------------------------------------------------------
-   A set is a handful of takes of the same thing, played one at random so the
-   same one does not come back every round.
-
-   iOS will only play an element that a gesture has touched, and these fire on
-   a timer after the pen has left the glass. So every element in every set is
-   woken silently at volume zero on the first pen-down, while a finger is still
-   down, and paused again before anyone hears it. */
-function voices(srcs, vol) {
-    const els = srcs.map(src => { const a = new Audio(src); a.preload = 'auto'; a.volume = vol; return a; });
-    return {
-        wake() {
-            els.forEach(a => {
-                const done = () => { try { a.pause(); a.currentTime = 0; } catch (e) { /* never mind */ }
-                                     a.volume = vol; };
-                try {
-                    a.volume = 0;
-                    const q = a.play();
-                    if (q && q.then) q.then(done).catch(done); else done();
-                } catch (e) { a.volume = vol; }
-            });
-        },
-        play() {
-            if (!soundOn) return;
-            const a = els[(Math.random() * els.length) | 0];
-            try { a.currentTime = 0; const q = a.play(); if (q && q.catch) q.catch(() => {}); }
-            catch (e) { /* no audio here, never mind */ }
-        },
-        hush() { els.forEach(a => { try { a.pause(); } catch (e) { /* never mind */ } }); },
-        els,
-    };
-}
-const YAYS = voices(['yay-1.mp4', 'yay-2.mp4', 'yay-3.mp4', 'yay-4.mp4', 'yay-5.mp4'], .95);
-const BOOS = voices(['boo-1.mp4',
-                     'boo-2.mp4',
-                     'boo-3.mp4',
-                     'boo-4.mp4',
-                     'boo-5.mp4',
-                     'boo-6.mp4',
-                     'boo-7.mp4',
-                     'boo-8.mp4',
-                     'boo-9.mp4',
-                     'boo-10.mp4',
-                     'boo-11.mp4'], .95);
-const ALL_VOICES = [YAYS, BOOS];
-let voicesWoken = false;
-function wakeVoices() {
-    if (voicesWoken) return;
-    voicesWoken = true;
-    ALL_VOICES.forEach(v => v.wake());
-}
-function oohStart() {
+/* ---- the hum ----------------------------------------------------------
+   A note held while the pen is down, which a recording could never do: its
+   pitch is driven by how far round the lap you have got, so closing the circle
+   is something you hear as well as see. The filter opens with it, so it
+   brightens rather than just going up. */
+const HUM_LO = 170, HUM_HI = 640;
+let hum = null;
+function humStart() {
     if (!soundOn) return;
-    try { OOH.currentTime = 0; const q = OOH.play(); if (q && q.catch) q.catch(() => {}); }
-    catch (e) { /* no audio here, never mind */ }
+    try {
+        const t = audioNow();
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain(),
+              f = audioCtx.createBiquadFilter(), lfo = audioCtx.createOscillator(),
+              la = audioCtx.createGain();
+        o.type = 'sawtooth';
+        o.frequency.setValueAtTime(HUM_LO, t);
+        f.type = 'lowpass'; f.Q.value = 6; f.frequency.setValueAtTime(HUM_LO * 3.4, t);
+        g.gain.setValueAtTime(.0001, t);
+        g.gain.exponentialRampToValueAtTime(.15, t + .07);
+        // a touch of movement, so it is a voice rather than a test tone
+        lfo.frequency.value = 5.4; la.gain.value = 3.6;
+        lfo.connect(la); la.connect(o.frequency);
+        o.connect(f); f.connect(g); g.connect(master);
+        o.start(t); lfo.start(t);
+        hum = { o, g, f, lfo };
+    } catch (e) { /* no audio here, never mind */ }
 }
-function oohStop() {
-    try { OOH.pause(); OOH.currentTime = 0; } catch (e) { /* never mind */ }
+function humTo(lap) {
+    if (!hum) return;
+    try {
+        const t = audioCtx.currentTime, hz = HUM_LO + (HUM_HI - HUM_LO) * Math.min(1, lap);
+        hum.o.frequency.setTargetAtTime(hz, t, .06);
+        hum.f.frequency.setTargetAtTime(hz * 3.4, t, .06);
+    } catch (e) { /* never mind */ }
+}
+function humStop() {
+    if (!hum) return;
+    const h = hum; hum = null;
+    try {
+        const t = audioCtx.currentTime;
+        h.g.gain.cancelScheduledValues(t);
+        h.g.gain.setValueAtTime(Math.max(.0001, h.g.gain.value), t);
+        h.g.gain.exponentialRampToValueAtTime(.0001, t + .13);
+        h.o.stop(t + .16); h.lfo.stop(t + .16);
+    } catch (e) { /* never mind */ }
 }
 
 const muteBtn = document.getElementById('mute');
@@ -502,7 +503,7 @@ muteBtn.addEventListener('click', e => {
     soundOn = !soundOn;
     try { localStorage.setItem(soundKey, soundOn ? 'on' : 'off'); } catch (e) { /* private mode */ }
     applySound();
-    if (soundOn) chime(70); else { oohStop(); ALL_VOICES.forEach(v => v.hush()); }
+    if (soundOn) chime(70); else humStop();
 });
 applySound();
 
@@ -561,7 +562,8 @@ const twistCount = r => Math.min(3, 1 + Math.floor((r - 4) / 4));
 // generous to begin with, and never quite enough later on
 const timeFor = r => 1.6 + 3.4 * Math.pow(.92, r - 1);
 
-const run = { round: 0, live: false, twists: [], limit: 0, drift: 0, swarmN: 0, grip: 'pencil' };
+const run = { round: 0, live: false, tally: false, twists: [], limit: 0, drift: 0, swarmN: 0,
+              grip: 'pencil' };
 const has = k => run.twists.includes(k);
 // the clock is always on, so nothing has to ask
 
@@ -643,7 +645,7 @@ const GAP_ALLOW = 2;                // bins you may leave empty and still be rou
 const binOf = a => ((Math.floor((a + Math.PI) / (2 * Math.PI) * BINS) % BINS) + BINS) % BINS;
 
 function judge(points) {
-    if (points.length < 24) return { ok: false, why: 'Too short - draw all the way round the dot.' };
+    if (points.length < 24) return { ok: false, lap: 0, why: 'Too short - draw all the way round the dot.' };
     const sum = new Float64Array(BINS), cnt = new Uint32Array(BINS);
     let sweep = 0, pa = null, pr = 0, inside = false;
 
@@ -671,17 +673,18 @@ function judge(points) {
         }
         pa = a; pr = r;
     }
-    if (inside) return { ok: false, why: 'That went over the dot - keep it outside.' };
+    if (inside) return { ok: false, lap: 0, why: 'That went over the dot - keep it outside.' };
 
     let filled = 0, total = 0, n = 0;
     for (let i = 0; i < BINS; i++) if (cnt[i]) { filled++; total += sum[i] / cnt[i]; n++; }
+    const lap = filled / BINS;
     if (filled < BINS - GAP_ALLOW)
-        return { ok: false, why: Math.abs(sweep) < Math.PI * 1.6
+        return { ok: false, lap, why: Math.abs(sweep) < Math.PI * 1.6
             ? 'Not all the way round - one full lap of the dot.'
             : 'There is a gap in that one - one unbroken lap.' };
 
     const mean = total / n;
-    if (mean < MIN_MEAN) return { ok: false, why: 'Too small to judge - give it some room.' };
+    if (mean < MIN_MEAN) return { ok: false, lap, why: 'Too small to judge - give it some room.' };
 
     let v = 0;
     for (let i = 0; i < BINS; i++) if (cnt[i]) { const d = sum[i] / cnt[i] - mean; v += d * d; }
@@ -692,7 +695,7 @@ function judge(points) {
     // At this exponent a normal circle lands in the sixties, a careful one in
     // the eighties, and the nineties still have to be earned.
     const score = 100 * Math.pow(Math.max(0, 1 - sd / mean), 3);
-    return { ok: true, score: Math.max(0, Math.min(100, score)), mean };
+    return { ok: true, lap, score: Math.max(0, Math.min(100, score)), mean };
 }
 
 // the running mean while the pen is still down, for the live colouring
@@ -853,10 +856,11 @@ function easeView(to) {
     };
     viewAnim = requestAnimationFrame(step);
 }
-// the circle wants to sit in the gap between the HUD and the top of the sheet
-function liftView() {
-    const sheet = card.querySelector('.inner').getBoundingClientRect();
-    const top = 64, bottom = Math.max(top + 120, sheet.top - 18);
+// the circle wants to sit in the gap between the HUD and whatever is below it
+function liftView(floor) {
+    const top = 64;
+    const bottom = Math.max(top + 120,
+        (floor !== undefined ? floor : card.querySelector('.inner').getBoundingClientRect().top) - 18);
     const room = Math.min(bottom - top, W - 36);
     const k = Math.min(1, room * .5 / (verdict.mean + 14));
     easeView({ y: (top + bottom) / 2 - CY, k });
@@ -895,6 +899,8 @@ function sample(x, y) {
     return [x, y, cx, cy, ms];
 }
 function start(x, y) {
+    // impatient: a tap during the read-out gets on with it
+    if (run.tally) return nextRound();
     if (!card.hidden || !run.live) return;
     cancelAnimationFrame(viewAnim);
     view = { y: 0, k: 1 };
@@ -906,8 +912,7 @@ function start(x, y) {
     bannerEl.classList.remove('go');
     liveEl.classList.add('on');
     liveEl.textContent = '';
-    wakeVoices();
-    oohStart();
+    humStart();
     draw();
 }
 function move(x, y) {
@@ -916,14 +921,15 @@ function move(x, y) {
     if (Math.hypot(x - last[0], y - last[1]) < MIN_STEP) return;
     pts.push(sample(x, y));
     draw();
-    // a live read of the lap so far, so you can see it closing
+    // a live read of the lap so far, so you can see it closing - and hear it
     const j = judge(pts);
+    humTo(j.lap || 0);
     liveEl.textContent = j.ok ? j.score.toFixed(1) : '';
 }
 function end() {
     if (!drawing) return;
     drawing = false;
-    oohStop();
+    humStop();
     liveEl.classList.remove('on');
     clockEl.classList.remove('on', 'low');
     verdict = judge(pts);
@@ -935,7 +941,7 @@ function end() {
 function timeUp() {
     if (!drawing) return;
     drawing = false;
-    oohStop();
+    humStop();
     liveEl.classList.remove('on');
     clockEl.classList.remove('on', 'low');
     verdict = null;
@@ -1008,6 +1014,16 @@ const SHAPES = `<svg viewBox="0 0 64 64"><g transform="translate(2.3 2.4) scale(
 document.querySelector('.cheer').innerHTML = SHAPES;
 
 const appEl = document.getElementById('app'), flashEl = document.getElementById('flash');
+const tallyEl = document.getElementById('tally');
+let tallyT = 0;
+// the beat between rounds: it runs itself out, or a tap cuts it short
+function nextRound() {
+    if (!run.tally) return;
+    clearTimeout(tallyT);
+    run.tally = false;
+    tallyEl.classList.remove('on');
+    startRound(run.round + 1);
+}
 // the screen flinches at a miss and swells at a pass
 function jolt(ok) {
     appEl.classList.remove('shake', 'lift');
@@ -1068,6 +1084,9 @@ const pick = a => a[(Math.random() * a.length) | 0];
 
 function startRound(n) {
     burst = null;
+    run.tally = false;
+    clearTimeout(tallyT);
+    tallyEl.classList.remove('on');
     showRound(n);
     run.round = n;
     run.live = true;
@@ -1111,7 +1130,7 @@ function settle(score) {
     }
     card.className = row[1] + (passed ? '' : ' failed') + (record ? ' record' : '');
     document.getElementById('score').innerHTML = pc(score) + '<span class="pc">%</span>';
-    document.getElementById('rating').textContent = pick(passed ? row[2] : row[3]);
+    document.getElementById('rating').textContent = pick(row[3]);
     document.getElementById('pass').innerHTML = passed
         ? `<span class="ok">Through</span> &middot; needed ${pc(need)}%`
         : `<span class="no">Needed ${pc(need)}%</span>`;
@@ -1122,17 +1141,27 @@ function settle(score) {
     showRound(run.round);
     document.getElementById('again').textContent = passed ? `Round ${run.round + 1}` : 'Again!';
     if (!passed) run.live = false;
-    // the moment the lap closes, before the card has any say in it
+    // the moment the lap closes, before anything else has a say in it
     jolt(passed);
     sting(passed);
     seedBurst(passed);
 
+    if (passed) {
+        // a beat to read it, then the next one starts on its own
+        run.tally = true;
+        tallyEl.innerHTML =
+            `<span class="n">${pc(score)}<i>%</i></span>` +
+            `<span class="l">${pick(row[2])}</span>` +
+            `<span class="b">needed ${pc(need)}%</span>`;
+        tallyEl.classList.add('on');
+        setTimeout(() => liftView(H * .62), 40);
+        tallyT = setTimeout(nextRound, 1400);
+        return;
+    }
     setTimeout(() => {
         card.hidden = false;
         liftView();
         if (record) { confetti(30); fanfare(); }
-        else if (passed) YAYS.play();
-        else BOOS.play();
     }, 440);
 }
 

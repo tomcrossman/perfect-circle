@@ -69,6 +69,31 @@ comes from the score and the expression comes from the pass mark.
 Each band has its own pool of lines, and the bad ones have the most, because
 they are the funny ones. A line stays put whether you got through or not.
 
+Closing the lap is answered straight away, before anything else has a say in
+it: a slap and a flinch of the whole screen for a miss, a sweep and a swell for
+a pass, with a burst thrown off the line either way.
+
+While the pen is down a note is held, and its pitch is driven by how far round
+the lap you have got, so closing the circle is something you hear as well as
+see. It is synthesised rather than recorded, which is the only way it could
+follow you like that - and it means the whole game is still one HTML file.
+
+Getting through a round shows the score for a beat and then starts the next one
+on its own; a tap cuts the beat short. The card is kept for the end of a run,
+where there is actually something to decide.
+
+## The verdict
+
+The mark you got looks back at you: an egg when you drew an egg, an oval, a
+near-circle, and a circle in sunglasses when you have earned it.
+
+The shape is what you drew; the face is whether it got you through, and those
+are not the same question - an egg over a low bar is a happy egg. So the shape
+comes from the score and the expression comes from the pass mark.
+
+Each band has its own pool of lines, and the bad ones have the most, because
+they are the funny ones. A line stays put whether you got through or not.
+
 Closing the lap is answered straight away, before the card has any say in it:
 a slap and a flinch of the whole screen for a miss, a sweep and a swell for a
 pass, with a burst thrown off the line either way.
