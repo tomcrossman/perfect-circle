@@ -457,7 +457,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v40';
+const APP_VERSION = 'v41';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -722,9 +722,15 @@ addEventListener('resize', fit);
 // spoils it and sits over the drawing while it does.
 const TWISTS = {
     fade:  { from: 4 },
+    way:   { from: 5 },
     drift: { from: 6 },
     swarm: { from: 8 },
 };
+// Which way you go round is a habit you do not know you have, so this one is
+// not random: it demands the opposite of whichever way you last got round
+// successfully. Getting it on your own side of the argument is no test.
+const wayName = w => w < 0 ? 'anticlockwise' : 'clockwise';
+let natural = 0;
 const TWIST_KEYS = Object.keys(TWISTS);
 // the bar climbs quickly at first and then creeps, so it is always just
 // out of reach without ever becoming arithmetic
@@ -735,7 +741,7 @@ const twistCount = r => Math.min(3, 1 + Math.floor((r - 4) / 4));
 const timeFor = r => 1.6 + 3.4 * Math.pow(.92, r - 1);
 
 const run = { round: 0, live: false, tally: false, twists: [], limit: 0, drift: 0, swarmN: 0,
-              shape: 'circle' };
+              shape: 'circle', way: 0 };
 const has = k => run.twists.includes(k);
 // the clock is always on, so nothing has to ask
 
@@ -810,9 +816,12 @@ HAND.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`<svg xmlns=
    profile is flat 1, so everything below reduces exactly to what it was and
    a circle scores identically to before. */
 const SHAPES = {
-    circle:   { n: 0, name: 'circle' },
-    triangle: { n: 3, name: 'triangle' },
-    square:   { n: 4, name: 'square' },
+    circle:   { n: 0, name: 'circle',
+                first: 'Draw a circle around the dot', again: 'Round the dot again' },
+    triangle: { n: 3, name: 'triangle',
+                first: 'Draw a triangle around the dot', again: 'Another triangle round the dot' },
+    square:   { n: 4, name: 'square',
+                first: 'Draw a square around the dot', again: 'Another square round the dot' },
 };
 const SHAPE_KEYS = ['circle', 'triangle', 'square'];
 function profile(a, n, phi) {
@@ -896,16 +905,19 @@ function judge(points) {
         ang.push((i + .5) / BINS * 2 * Math.PI - Math.PI); rad.push(r);
     }
     const lap = filled / BINS, mean = total / n;
+    const way = Math.sign(sweep);
     // the fit is worked out as soon as there is enough of a shape to fit, so
     // the line can be coloured against it while it is still being drawn
     const sides = SHAPES[run.shape].n;
     const f = n >= 12 ? fitTurn(ang, rad, sides) : null;
-    const part = f ? { lap, mean, R: f.R, phi: f.phi, sides } : { lap };
+    const part = f ? { lap, mean, way, R: f.R, phi: f.phi, sides } : { lap, way };
     if (filled < BINS - GAP_ALLOW)
         return { ...part, ok: false, why: Math.abs(sweep) < Math.PI * 1.6
             ? `Not all the way round - one full lap of the dot.`
             : 'There is a gap in that one - one unbroken lap.' };
 
+    if (run.way && way && way !== run.way)
+        return { ...part, ok: false, why: `Wrong way round - ${wayName(run.way)} this time.` };
     if (mean < MIN_MEAN) return { ...part, ok: false, why: 'Too small to judge - give it some room.' };
 
     let v = 0;
@@ -940,6 +952,27 @@ function shade(off) {
    DRAWING IT ALL
    ============================================================ */
 let pts = [], drawing = false, verdict = null, penT0 = 0, liveJ = null;
+
+/* ---- which way round, when the round insists --------------------------- */
+function drawWay(cx, cy) {
+    const R = 21, d = run.way, a0 = -Math.PI * .8, a1 = a0 + d * Math.PI * 1.15;
+    ctx.save();
+    ctx.globalAlpha = .34;
+    ctx.strokeStyle = '#241F2E'; ctx.fillStyle = '#241F2E';
+    ctx.lineWidth = 3; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, Math.min(a0, a1), Math.max(a0, a1));
+    ctx.stroke();
+    const hx = cx + Math.cos(a1) * R, hy = cy + Math.sin(a1) * R;
+    const t = a1 + d * Math.PI / 2;               // the tangent, pointing the way round
+    ctx.beginPath();
+    ctx.moveTo(hx + Math.cos(t) * 8, hy + Math.sin(t) * 8);
+    ctx.lineTo(hx + Math.cos(t + 2.5) * 9, hy + Math.sin(t + 2.5) * 9);
+    ctx.lineTo(hx + Math.cos(t - 2.5) * 9, hy + Math.sin(t - 2.5) * 9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+}
 
 /* ---- showing them what to do -----------------------------------------
    A lap of the shape draws itself round the dot, with the hand riding the
@@ -1028,6 +1061,9 @@ function draw() {
     ctx.fill();
 
     if (demoOn()) drawDemo(ms, dx, dy);
+    // Nothing may be drawn inside MIN_R anyway, so the arrow sits in that dead
+    // zone: always visible, never in the way of the line.
+    if (run.way && run.live && card.hidden && !(verdict && verdict.ok)) drawWay(dx, dy);
 
     // the line you should have drawn: the radius you held on average, kept
     // around wherever the dot was at the time
@@ -1210,6 +1246,7 @@ function end() {
     liveEl.classList.remove('on');
     clockEl.classList.remove('on', 'low');
     verdict = judge(pts);
+    if (verdict.ok && verdict.way) natural = verdict.way;
     draw();
     if (verdict.ok) settle(verdict.score);
     else { buzz(); armClock(); promptEl.textContent = verdict.why;
@@ -1226,7 +1263,7 @@ function timeUp() {
     draw();
     buzz();
     armClock();
-    promptEl.textContent = 'Out of time - round again, faster.';
+    promptEl.textContent = 'Out of time - faster next go.';
     promptEl.classList.remove('gone');
 }
 
@@ -1331,7 +1368,11 @@ document.getElementById('best-val').textContent = fmt(best);
 /* Two pools a band: what to say when it got you through, and what to say when
    it did not. The shape is the joke either way - an egg is still an egg - but
    an egg that cleared the bar has not done anything wrong. */
-const RATINGS = [
+/* Two pools a band, per shape: what to say when it got you through, and what
+   to say when it did not. The shape is the joke either way, so the joke has
+   to change with it - an egg is no insult to a square. */
+const RATINGS = {
+    circle: [
     [99.2, 'm-great',
      ['Are you a compass?', 'That was not a hand', 'Do that again, slowly',
       'Nobody likes a show-off'],
@@ -1363,7 +1404,74 @@ const RATINGS = [
      ['That is an egg', 'That is a scone', 'That is a bean', 'A very tired balloon',
       'Did you draw that on a bus?', 'That is a cloud', 'That is a crisp',
       'Geometry would like a word', 'A circle drawn from memory', 'That is a kidney']],
-];
+],
+    triangle: [
+    [99.2, 'm-great',
+     ['Are you a set square?', 'That was not a hand', 'Do that again, slowly',
+      'Pythagoras is weeping'],
+     ['Three perfect sides, still not enough', 'Cruel, that']],
+    [97, 'm-great',
+     ['Suspiciously sharp', 'Almost too pointy', 'Frankly suspicious', 'Were you traced?'],
+     ['Sharp, but the bar has moved', 'Beautiful. Not enough.']],
+    [93, 'm-great',
+     ['Very triangular indeed', 'Properly pointy', 'That is a triangle', 'Geometrically sound'],
+     ['A fine triangle, in a hard round', 'That would have walked it earlier']],
+    [88, 'm-good',
+     ['Nice triangle', 'Three good sides', 'No notes', 'Well cornered'],
+     ['Nice, and still short', 'The bar has got greedy']],
+    [80, 'm-good',
+     ['Pretty good', 'Pointy and through', 'Not far off', 'A decent wedge'],
+     ['So close', 'Nearly. Not quite.', 'That one hurt']],
+    [68, 'm-meh',
+     ['That will do nicely', 'Solid', 'Good enough, and then some', 'Through with room'],
+     ['A triangle, if you squint', 'Broadly three-sided', 'Triangle-adjacent',
+      'Pointy enough for jazz']],
+    [50, 'm-meh',
+     ['Wonky, but through', 'It counts', 'Got away with that one', 'Pointy enough'],
+     ['A bit wobbly', 'That is a slice of pizza', 'That is a shark fin',
+      'Two good sides and an opinion', 'That is a bunting flag', 'That is a doorstop']],
+    [0, 'm-poor',
+     ['A passing wedge', 'Not pretty. Through.', 'Scraped it', 'Ugly, but it counts',
+      'We will say no more about it', 'A wedge, and a lucky one'],
+     ['That is a hat', 'That is a sail', 'That is a tent in a gale', 'That is a crisp',
+      'A triangle drawn from memory', 'That is a traffic cone, lying down',
+      'Geometry would like a word', 'Two sides short of a triangle',
+      'That is a slice of toast', 'The Bermuda one, at a guess']],
+],
+    square: [
+    [99.2, 'm-great',
+     ['Are you a T-square?', 'That was not a hand', 'Do that again, slowly',
+      'Four right angles, no argument'],
+     ['Square, and still not enough', 'Cruel, that']],
+    [97, 'm-great',
+     ['Suspiciously square', 'Almost too square', 'Frankly suspicious', 'Were you traced?'],
+     ['Square, but the bar has moved', 'Beautiful. Not enough.']],
+    [93, 'm-great',
+     ['Very square indeed', 'Fair and square', 'That is a square', 'Geometrically sound'],
+     ['A fine square, in a hard round', 'That would have walked it earlier']],
+    [88, 'm-good',
+     ['Nice square', 'Four good sides', 'No notes', 'Squared away'],
+     ['Nice, and still short', 'The bar has got greedy']],
+    [80, 'm-good',
+     ['Pretty good', 'Boxy and through', 'Not far off', 'A decent box'],
+     ['So close', 'Nearly. Not quite.', 'That one hurt']],
+    [68, 'm-meh',
+     ['That will do nicely', 'Solid', 'Good enough, and then some', 'Through with room'],
+     ['A square, if you squint', 'Broadly four-sided', 'Square-adjacent',
+      'Square enough for jazz']],
+    [50, 'm-meh',
+     ['Wonky, but through', 'It counts', 'Got away with that one', 'Square enough'],
+     ['A bit wobbly', 'That is a rectangle', 'That is an envelope',
+      'That is a ravioli', 'A box that has been sat on', 'That is a slice of bread']],
+    [0, 'm-poor',
+     ['A passing box', 'Not pretty. Through.', 'Scraped it', 'Ugly, but it counts',
+      'We will say no more about it', 'A box, and a lucky one'],
+     ['That is a potato', 'That is a pillow', 'That is a scone', 'That is a beanbag',
+      'A square drawn from memory', 'Four corners, loosely interpreted',
+      'Geometry would like a word', 'That is a cushion', 'That is a bean',
+      'A box that gave up']],
+],
+};
 const pick = a => a[(Math.random() * a.length) | 0];
 
 function startRound(n) {
@@ -1376,6 +1484,7 @@ function startRound(n) {
     run.live = true;
     run.twists = rollTwists(n);
     run.limit = timeFor(n);
+    run.way = has('way') ? (natural ? -natural : -1) : 0;
     run.drift = Math.min(44, 13 + (n - TWISTS.drift.from) * 2.8);
     run.swarmN = Math.min(26, 8 + (n - TWISTS.swarm.from) * 1.6) | 0;
     roundT0 = now();
@@ -1385,13 +1494,15 @@ function startRound(n) {
     view = { y: 0, k: 1 };
 
     bannerEl.innerHTML = `<span class="r">Round ${n}</span>` +
-        `<span class="need">${SHAPES[run.shape].name} &middot; ` +
-        `${pc(passMark(n))}% in ${run.limit.toFixed(1)}s</span>`;
+        `<span class="need">${run.way ? wayName(run.way) + ' ' : ''}${SHAPES[run.shape].name}` +
+        ` &middot; ${pc(passMark(n))}% in ${run.limit.toFixed(1)}s</span>`;
     bannerEl.classList.remove('go');
     void bannerEl.offsetWidth;
     bannerEl.classList.add('go');
-    const what = SHAPES[run.shape].name;
-    promptEl.textContent = n === 1 ? `Draw a ${what} around the dot` : 'Round the dot again';
+    const what = SHAPES[run.shape];
+    promptEl.textContent = run.way
+        ? `${wayName(run.way)[0].toUpperCase()}${wayName(run.way).slice(1)} this time`
+        : n === 1 ? what.first : what.again;
     promptEl.classList.remove('gone');
     draw();
 }
@@ -1406,7 +1517,7 @@ function showRound(n) {
 function settle(score) {
     const need = passMark(run.round);
     const passed = score >= need;
-    const row = RATINGS.find(r => score >= r[0]);
+    const row = RATINGS[run.shape].find(r => score >= r[0]);
     const done = run.round - (passed ? 0 : 1);          // rounds actually completed
     const record = !passed && done > best;
     if (record) {
@@ -1420,7 +1531,7 @@ function settle(score) {
         ? `<span class="ok">Through</span> &middot; needed ${pc(need)}%`
         : `<span class="no">Needed ${pc(need)}%</span>`;
     document.getElementById('note').textContent =
-        'The dashed ring is the circle you were aiming for.';
+        `The dashed line is the ${SHAPES[run.shape].name} you were aiming for.`;
     document.getElementById('sum-rounds').textContent = done;
     document.getElementById('card-best').textContent = fmt(best);
     showRound(run.round);
