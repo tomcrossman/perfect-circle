@@ -81,6 +81,20 @@ body {
     box-shadow: var(--pop-s);
 }
 #mute:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--ink); }
+/* what you are drawing, and the only thing on the HUD you can press besides
+   the sound. Switching starts the run again - a square is a different game */
+#shapes {
+    display: flex; gap: 3px; align-self: center; pointer-events: auto; padding: 3px;
+    background: var(--panel); border: 3px solid var(--ink); border-radius: 13px;
+    box-shadow: var(--pop-s);
+}
+#shapes button {
+    width: 30px; height: 27px; padding: 0; line-height: 0; cursor: pointer;
+    color: var(--ink); background: none; border: 0; border-radius: 9px;
+}
+#shapes button svg { width: 17px; height: 17px; vertical-align: middle; }
+#shapes button.on { background: var(--gold); }
+#shapes button:active { transform: translate(1px, 1px); }
 #mute .off { display: none; }
 #mute.muted .on { display: none; }
 #mute.muted .off { display: inline; }
@@ -295,23 +309,23 @@ body {
    nor with each other, and a degree or two of tilt - which is the whole
    difference between a dialog and a doodle.
    ============================================================ */
-.plate, #mute, #clock, #card .inner, .btn, #ribbon {
+.plate, #mute, #shapes, #clock, #card .inner, .btn, #ribbon {
     border-radius: 22px 9px 19px 12px / 11px 20px 10px 23px;
 }
-.plate, #mute, #clock, #card .inner, .btn { position: relative; }
-.plate::before, #mute::before, #clock::before, #card .inner::before, .btn::before,
-.plate::after,  #mute::after,  #clock::after,  #card .inner::after,  .btn::after {
+.plate, #mute, #shapes, #clock, #card .inner, .btn { position: relative; }
+.plate::before, #mute::before, #shapes::before, #clock::before, #card .inner::before, .btn::before,
+.plate::after,  #mute::after,  #shapes::after,  #clock::after,  #card .inner::after,  .btn::after {
     content: ''; position: absolute; pointer-events: none;
     border: 2.4px solid var(--ink);
 }
 /* the inset drifts round rather than sitting evenly, so the second line runs
    wide on one side and tight on the other, the way an overdrawn box does */
-.plate::after, #mute::after, #clock::after, #card .inner::after, .btn::after {
+.plate::after, #mute::after, #shapes::after, #clock::after, #card .inner::after, .btn::after {
     inset: -4px -1px -2px -3px; opacity: .34;
     border-radius: 10px 21px 11px 20px / 20px 11px 22px 10px;
     transform: rotate(1.15deg);
 }
-.plate::before, #mute::before, #clock::before, #card .inner::before, .btn::before {
+.plate::before, #mute::before, #shapes::before, #clock::before, #card .inner::before, .btn::before {
     inset: -1px -3px -4px -1px; opacity: .17;
     border-radius: 19px 13px 23px 9px / 13px 22px 9px 19px;
     transform: rotate(-.95deg);
@@ -324,6 +338,7 @@ body {
    press, the beat and the entrances, and they all have to keep working */
 .plate { rotate: -1.3deg; }
 #mute  { rotate: 1.9deg; }
+#shapes { rotate: -.8deg; }
 #clock { rotate: .9deg; }
 .btn   { rotate: -1.1deg; }
 #card .inner { rotate: .6deg; }
@@ -347,6 +362,20 @@ body {
     border-radius: 55% 45% 57% 43% / 43% 56% 44% 57%; transform: rotate(-4deg); }
 #clock .track { border-radius: 11px 5px 12px 6px / 6px 12px 5px 11px; }
 #clock i { border-radius: inherit; }
+
+/* A third thing in the HUD row is one more than a narrow phone has room for,
+   so below 400px everything in it comes in a size. */
+@media (max-width: 400px) {
+    #hud { padding: 10px 8px; gap: 4px; }
+    .plate { font-size: 19px; padding: 3px 8px 1px; }
+    .plate .ico { width: 14px; height: 14px; }
+    .plate .of { margin-left: 5px; padding-left: 6px; }
+    #shapes { padding: 2px; gap: 2px; }
+    #shapes button { width: 26px; height: 24px; }
+    #shapes button svg { width: 15px; height: 15px; }
+    #mute { padding: 5px 6px 2px; }
+    #mute svg { width: 19px; height: 19px; }
+}
 </style>
 </head>
 
@@ -383,6 +412,16 @@ body {
     <div id="hud">
         <div class="plate" id="bestplate">Round&nbsp;<span id="round-val">1</span><span
             class="of"><svg class="ico"><use href="#i-cup"/></svg><span id="best-val">0</span></span></div>
+        <div id="shapes" role="group" aria-label="What to draw">
+            <button data-shape="circle" class="on" aria-label="Circle"><svg viewBox="0 0 20 20"><circle
+                cx="10" cy="10" r="7.1" fill="none" stroke="currentColor" stroke-width="2.7"/></svg></button>
+            <button data-shape="triangle" aria-label="Triangle"><svg viewBox="0 0 20 20"><path
+                d="M 10 3.2 L 17 16.2 H 3 Z" fill="none" stroke="currentColor" stroke-width="2.7"
+                stroke-linejoin="round"/></svg></button>
+            <button data-shape="square" aria-label="Square"><svg viewBox="0 0 20 20"><rect
+                x="3.4" y="3.4" width="13.2" height="13.2" rx="1.6" fill="none" stroke="currentColor"
+                stroke-width="2.7"/></svg></button>
+        </div>
         <button id="mute" aria-label="Sound on or off">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#241F2E"
                  stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
@@ -418,7 +457,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v38';
+const APP_VERSION = 'v39';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -695,7 +734,8 @@ const twistCount = r => Math.min(3, 1 + Math.floor((r - 4) / 4));
 // generous to begin with, and never quite enough later on
 const timeFor = r => 1.6 + 3.4 * Math.pow(.92, r - 1);
 
-const run = { round: 0, live: false, tally: false, twists: [], limit: 0, drift: 0, swarmN: 0 };
+const run = { round: 0, live: false, tally: false, twists: [], limit: 0, drift: 0, swarmN: 0,
+              shape: 'circle' };
 const has = k => run.twists.includes(k);
 // the clock is always on, so nothing has to ask
 
@@ -761,6 +801,57 @@ HAND.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`<svg xmlns=
    own. Each point remembers where the dot was at the time, so a drifting
    one is judged fairly. What is left is how much the radius wandered.
    ============================================================ */
+/* ---- what you are being asked to draw ---------------------------------
+   Scoring by angle turns out to be the whole trick here: a regular polygon is
+   just a circle whose radius depends on the angle. For n sides turned to phi,
+   the radius at an angle is cos(pi/n)/cos(its offset from the nearest edge
+   midpoint, folded into one sector) - largest at the corners and smallest
+   halfway along an edge. A circle is the n = 0 case, where that
+   profile is flat 1, so everything below reduces exactly to what it was and
+   a circle scores identically to before. */
+const SHAPES = {
+    circle:   { n: 0, name: 'circle' },
+    triangle: { n: 3, name: 'triangle' },
+    square:   { n: 4, name: 'square' },
+};
+const SHAPE_KEYS = ['circle', 'triangle', 'square'];
+function profile(a, n, phi) {
+    if (!n) return 1;
+    const sec = 2 * Math.PI / n, half = Math.PI / n;
+    let d = (a - phi + half) % sec;
+    if (d < 0) d += sec;
+    return Math.cos(half) / Math.cos(d - half);
+}
+/* Which way up they drew it is their business, so the turn is fitted rather
+   than demanded: sweep one sector coarsely, then close in around the best.
+   A sector is all that is needed - the profile repeats every one of them. */
+function fitTurn(ang, rad, n) {
+    if (!n) {                                   // a circle has nothing to turn
+        let t = 0; for (const r of rad) t += r;
+        return { phi: 0, R: t / rad.length };
+    }
+    const sec = 2 * Math.PI / n;
+    let best = null;
+    const tryPhi = phi => {
+        let su = 0, sru = 0;
+        for (let i = 0; i < rad.length; i++) {
+            const u = profile(ang[i], n, phi);
+            su += u * u; sru += rad[i] * u;
+        }
+        const R = su ? sru / su : 0;
+        let v = 0;
+        for (let i = 0; i < rad.length; i++) {
+            const d = rad[i] - R * profile(ang[i], n, phi);
+            v += d * d;
+        }
+        if (!best || v < best.v) best = { phi, R, v };
+    };
+    for (let i = 0; i < 16; i++) tryPhi(i * sec / 16);
+    const c = best.phi;
+    for (let i = -4; i <= 4; i++) tryPhi(c + i * sec / 64);
+    return best;
+}
+
 const BINS = 180;                   // two degrees each
 const MIN_R = 26;                   // nothing drawn on top of the dot counts
 const MIN_MEAN = 46;                // and a tiny circle is not an achievement
@@ -799,18 +890,26 @@ function judge(points) {
     if (inside) return { ok: false, lap: 0, why: 'That went over the dot - keep it outside.' };
 
     let filled = 0, total = 0, n = 0;
-    for (let i = 0; i < BINS; i++) if (cnt[i]) { filled++; total += sum[i] / cnt[i]; n++; }
-    const lap = filled / BINS;
+    const ang = [], rad = [];
+    for (let i = 0; i < BINS; i++) if (cnt[i]) {
+        filled++; const r = sum[i] / cnt[i]; total += r; n++;
+        ang.push((i + .5) / BINS * 2 * Math.PI - Math.PI); rad.push(r);
+    }
+    const lap = filled / BINS, mean = total / n;
+    // the fit is worked out as soon as there is enough of a shape to fit, so
+    // the line can be coloured against it while it is still being drawn
+    const sides = SHAPES[run.shape].n;
+    const f = n >= 12 ? fitTurn(ang, rad, sides) : null;
+    const part = f ? { lap, mean, R: f.R, phi: f.phi, sides } : { lap };
     if (filled < BINS - GAP_ALLOW)
-        return { ok: false, lap, why: Math.abs(sweep) < Math.PI * 1.6
-            ? 'Not all the way round - one full lap of the dot.'
+        return { ...part, ok: false, why: Math.abs(sweep) < Math.PI * 1.6
+            ? `Not all the way round - one full lap of the dot.`
             : 'There is a gap in that one - one unbroken lap.' };
 
-    const mean = total / n;
-    if (mean < MIN_MEAN) return { ok: false, lap, why: 'Too small to judge - give it some room.' };
+    if (mean < MIN_MEAN) return { ...part, ok: false, why: 'Too small to judge - give it some room.' };
 
     let v = 0;
-    for (let i = 0; i < BINS; i++) if (cnt[i]) { const d = sum[i] / cnt[i] - mean; v += d * d; }
+    for (let i = 0; i < n; i++) { const d = rad[i] - f.R * profile(ang[i], sides, f.phi); v += d * d; }
     const sd = Math.sqrt(v / n);
     // A finger on glass is nothing like as steady as it feels. A respectable
     // freehand circle wanders about 15% off its own average, so a curve tuned
@@ -818,7 +917,7 @@ function judge(points) {
     // At this exponent a normal circle lands in the sixties, a careful one in
     // the eighties, and the nineties still have to be earned.
     const score = 100 * Math.pow(Math.max(0, 1 - sd / mean), 3);
-    return { ok: true, lap, score: Math.max(0, Math.min(100, score)), mean };
+    return { ...part, ok: true, score: Math.max(0, Math.min(100, score)) };
 }
 
 // the running mean while the pen is still down, for the live colouring
@@ -840,7 +939,78 @@ function shade(off) {
 /* ============================================================
    DRAWING IT ALL
    ============================================================ */
-let pts = [], drawing = false, verdict = null, penT0 = 0;
+let pts = [], drawing = false, verdict = null, penT0 = 0, liveJ = null;
+
+/* ---- the page, doing something while you think ------------------------
+   Faint rings opening on the paper at random - which is the shape of the
+   whole game, and the nearest thing to rain on a sheet of squared paper.
+   They pull right back while the pen is down so they never compete with the
+   line, and they live outside the view transform so they stay put on the
+   page when the drawing lifts to make room for the verdict. */
+const ripples = [];
+const RIPPLE_EVERY = 820, RIPPLE_LIFE = 2700;
+let rippleAt = 0;
+function drawRipples(ms) {
+    if (ms - rippleAt > RIPPLE_EVERY) {
+        rippleAt = ms;
+        ripples.push({ t0: ms, x: 26 + Math.random() * Math.max(1, W - 52),
+                       y: 74 + Math.random() * Math.max(1, H - 150),
+                       r: 40 + Math.random() * 66 });
+    }
+    while (ripples.length && ms - ripples[0].t0 > RIPPLE_LIFE) ripples.shift();
+    ctx.save();
+    ctx.strokeStyle = '#405C7A';
+    for (const q of ripples) {
+        const e = (ms - q.t0) / RIPPLE_LIFE;
+        if (e < 0 || e > 1) continue;
+        ctx.globalAlpha = (1 - e) * Math.min(1, e * 7) * (drawing ? .05 : .17);
+        ctx.lineWidth = 2.6 * (1 - e) + .7;
+        ctx.beginPath();
+        ctx.arc(q.x, q.y, 5 + q.r * e, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    ctx.restore();
+}
+
+/* ---- showing them what to do -----------------------------------------
+   A lap of the shape draws itself round the dot, with the hand riding the
+   end of it, until the first time they touch the screen. It says what a
+   paragraph of instructions would and gets out of the way by itself. */
+const DEMO = { sweep: 2.2, hold: .5, fade: .45, gap: .7 };
+const DEMO_CYCLE = DEMO.sweep + DEMO.hold + DEMO.fade + DEMO.gap;
+let taught = false, demoT0 = now();
+const demoOn = () => !taught && run.live && !drawing && !pts.length
+                     && card.hidden && run.round === 1;
+function drawDemo(ms, cx, cy) {
+    const t = ((ms - demoT0) / 1000) % DEMO_CYCLE;
+    if (t > DEMO.sweep + DEMO.hold + DEMO.fade) return;
+    const e = Math.min(1, t / DEMO.sweep);
+    const over = t - DEMO.sweep - DEMO.hold;
+    const fade = over > 0 ? Math.max(0, 1 - over / DEMO.fade) : 1;
+    const n = SHAPES[run.shape].n, phi = -Math.PI / 2 + (n ? Math.PI / n : 0);
+    const R = Math.min(W, H) * .27, STEPS = 160;
+    let hx = cx, hy = cy - R;
+    ctx.save();
+    ctx.globalAlpha = .28 * fade;
+    ctx.strokeStyle = '#241F2E';
+    ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    for (let i = 0; i <= STEPS * e; i++) {
+        const a = -Math.PI / 2 + (i / STEPS) * Math.PI * 2;
+        const rr = R * profile(a, n, phi);
+        hx = cx + Math.cos(a) * rr; hy = cy + Math.sin(a) * rr;
+        i ? ctx.lineTo(hx, hy) : ctx.moveTo(hx, hy);
+    }
+    ctx.stroke();
+    if (e < 1 && HAND.complete && HAND.naturalWidth) {
+        const k = HAND_SCALE * .88;
+        ctx.globalAlpha = .34 * fade;
+        ctx.translate(hx, hy);
+        ctx.rotate(-HAND_ANG);
+        ctx.drawImage(HAND, -HAND_TIPX * k, -HAND_TIPY * k, HAND_W * k, HAND_H * k);
+    }
+    ctx.restore();
+}
 // what the moment of closing the lap throws off
 let burst = null;
 function seedBurst(ok) {
@@ -860,6 +1030,7 @@ const FADE_MS = 620;                // how long your line lasts, when it does no
 function draw() {
     const ms = now();
     ctx.clearRect(0, 0, W, H);
+    drawRipples(ms);
     ctx.save();
     ctx.translate(CX, CY + view.y);
     ctx.scale(view.k, view.k);
@@ -887,6 +1058,8 @@ function draw() {
     ctx.fillStyle = '#241F2E';
     ctx.fill();
 
+    if (demoOn()) drawDemo(ms, dx, dy);
+
     // the line you should have drawn: the radius you held on average, kept
     // around wherever the dot was at the time
     if (verdict && verdict.ok && pts.length > 1) {
@@ -897,7 +1070,8 @@ function draw() {
         ctx.beginPath();
         pts.forEach((p, i) => {
             const a = Math.atan2(p[1] - p[3], p[0] - p[2]);
-            const x = p[2] + Math.cos(a) * verdict.mean, y = p[3] + Math.sin(a) * verdict.mean;
+            const r = verdict.R * profile(a, verdict.sides, verdict.phi);
+            const x = p[2] + Math.cos(a) * r, y = p[3] + Math.sin(a) * r;
             i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
         });
         ctx.closePath();
@@ -931,7 +1105,10 @@ function draw() {
     }
 
     if (pts.length > 1) {
-        const mean = verdict && verdict.ok ? verdict.mean : meanSoFar(pts);
+        // colour each bit by how far it is from the shape that best fits what
+        // has been drawn so far - which for a circle is just its own average
+        const fit = (verdict && verdict.ok ? verdict : liveJ) || null;
+        const mean = fit && fit.mean ? fit.mean : meanSoFar(pts);
         const fading = has('fade') && drawing;
         ctx.lineWidth = 7;
         ctx.lineCap = 'round';
@@ -944,8 +1121,10 @@ function draw() {
                 if (alpha <= 0) continue;
             }
             const r = Math.hypot(b[0] - b[2], b[1] - b[3]);
+            const want = fit && fit.R
+                ? fit.R * profile(Math.atan2(b[1] - b[3], b[0] - b[2]), fit.sides, fit.phi) : mean;
             ctx.globalAlpha = alpha;
-            ctx.strokeStyle = mean > 0 ? shade(Math.abs(r - mean) / mean) : '#3fa45b';
+            ctx.strokeStyle = mean > 0 ? shade(Math.abs(r - want) / mean) : '#3fa45b';
             ctx.beginPath();
             ctx.moveTo(a[0], a[1]);
             ctx.lineTo(b[0], b[1]);
@@ -1003,10 +1182,9 @@ function frame() {
         if (left < run.limit * .3 && now() - lastTick > 240) { lastTick = now(); tick(); }
         if (left <= 0) return timeUp();
     }
-    // the dot moving, the swarm drifting, the ink fading and the burst all need
-    // repainting - and the burst outlives the round it ended, so it is checked
-    // whether or not one is still going
-    if (burst || drawing || (run.live && (has('drift') || has('swarm')))) draw();
+    // there is always something moving now - if nothing else, the rings
+    // opening on the paper - so the frame simply always paints
+    draw();
 }
 
 /* ============================================================
@@ -1034,6 +1212,8 @@ function start(x, y) {
     verdict = null;
     penT0 = now();
     pts = [sample(x, y)];
+    liveJ = null;
+    taught = true;                  // they have got the idea; stop showing them
     promptEl.classList.add('gone');
     bannerEl.classList.remove('go');
     liveEl.classList.add('on');
@@ -1049,6 +1229,7 @@ function move(x, y) {
     draw();
     // a live read of the lap so far, so you can see it closing - and hear it
     const j = judge(pts);
+    liveJ = j;
     humTo(j.lap || 0);
     liveEl.textContent = j.ok ? j.score.toFixed(1) : '';
 }
@@ -1082,7 +1263,7 @@ function timeUp() {
 let usingTouch = false;
 addEventListener('touchstart', e => {
     usingTouch = true;
-    if (e.target.closest('.btn, #mute')) return;
+    if (e.target.closest('.btn, #mute, #shapes')) return;
     e.preventDefault();
     start(e.touches[0].clientX, e.touches[0].clientY);
 }, { passive: false });
@@ -1096,7 +1277,7 @@ addEventListener('touchcancel', end);
 // pointerdown arrives before touchstart, so a finger is waved off by its own type
 addEventListener('pointerdown', e => {
     if (e.pointerType === 'touch') { usingTouch = true; return; }
-    if (usingTouch || e.target.closest('.btn, #mute')) return;
+    if (usingTouch || e.target.closest('.btn, #mute, #shapes')) return;
     start(e.clientX, e.clientY);
 });
 addEventListener('pointermove', e => {
@@ -1109,7 +1290,7 @@ addEventListener('pointerup', e => { if (e.pointerType !== 'touch' && !usingTouc
    ============================================================ */
 // the mark you got, looking back at you: an egg when you draw an egg,
 // and a smug circle when you draw one of those
-const SHAPES = `<svg viewBox="0 0 64 64"><g transform="translate(2.3 2.4) scale(.928)">
+const MASCOT = `<svg viewBox="0 0 64 64"><g transform="translate(2.3 2.4) scale(.928)">
     <g class="face s-poor">
         <path d="M 32 7 C 43 7, 51 23, 51 37 C 51 49.5, 42.6 58, 32 58
                  C 21.4 58, 13 49.5, 13 37 C 13 23, 21 7, 32 7 Z"
@@ -1137,7 +1318,7 @@ const SHAPES = `<svg viewBox="0 0 64 64"><g transform="translate(2.3 2.4) scale(
         <g class="fx"><path d="M 21.1 28.1 l 5.8 5.8 M 26.9 28.1 l -5.8 5.8" fill="none" stroke="#241F2E" stroke-width="2.6" stroke-linecap="round"/><path d="M 37.1 28.1 l 5.8 5.8 M 42.9 28.1 l -5.8 5.8" fill="none" stroke="#241F2E" stroke-width="2.6" stroke-linecap="round"/><path d="M 23 43 q 2.25 -4.50 4.5 0 q 2.25 4.50 4.5 0 q 2.25 -4.50 4.5 0 q 2.25 4.50 4.5 0" fill="none" stroke="#241F2E" stroke-width="2.4" stroke-linecap="round"/></g>
     </g>
 </g></svg>`;
-document.querySelector('.cheer').innerHTML = SHAPES;
+document.querySelector('.cheer').innerHTML = MASCOT;
 
 const appEl = document.getElementById('app'), flashEl = document.getElementById('flash');
 const tallyEl = document.getElementById('tally');
@@ -1163,9 +1344,16 @@ function jolt(ok) {
 
 // how far you got, not a sum of percentages: the bar rises every round, so the
 // round you reached is the difficulty you survived and needs no explaining
-const bestKey = 'pc-rounds';
-let best = 0;
-try { best = parseInt(localStorage.getItem(bestKey) || '0', 10) || 0; } catch (e) { best = 0; }
+// A best per shape, because a square is not a circle and one number across
+// both would mean nothing. The old single score becomes the circle's.
+const bestKey = k => 'pc-rounds-' + k;
+const bests = { circle: 0, triangle: 0, square: 0 };
+try {
+    for (const k of SHAPE_KEYS) bests[k] = parseInt(localStorage.getItem(bestKey(k)) || '0', 10) || 0;
+    const old = parseInt(localStorage.getItem('pc-rounds') || '0', 10) || 0;
+    if (old && !bests.circle) { bests.circle = old; localStorage.setItem(bestKey('circle'), String(old)); }
+} catch (e) { /* private mode */ }
+let best = bests.circle;
 const fmt = n => Math.round(n).toLocaleString('en-GB');
 const pc = n => n.toFixed(1);
 document.getElementById('best-val').textContent = fmt(best);
@@ -1227,11 +1415,13 @@ function startRound(n) {
     view = { y: 0, k: 1 };
 
     bannerEl.innerHTML = `<span class="r">Round ${n}</span>` +
-        `<span class="need">${pc(passMark(n))}% in ${run.limit.toFixed(1)}s</span>`;
+        `<span class="need">${SHAPES[run.shape].name} &middot; ` +
+        `${pc(passMark(n))}% in ${run.limit.toFixed(1)}s</span>`;
     bannerEl.classList.remove('go');
     void bannerEl.offsetWidth;
     bannerEl.classList.add('go');
-    promptEl.textContent = n === 1 ? 'Draw a circle around the dot' : 'Round the dot again';
+    const what = SHAPES[run.shape].name;
+    promptEl.textContent = n === 1 ? `Draw a ${what} around the dot` : 'Round the dot again';
     promptEl.classList.remove('gone');
     draw();
 }
@@ -1250,8 +1440,8 @@ function settle(score) {
     const done = run.round - (passed ? 0 : 1);          // rounds actually completed
     const record = !passed && done > best;
     if (record) {
-        best = done;
-        try { localStorage.setItem(bestKey, String(best)); } catch (e) { /* private mode */ }
+        best = bests[run.shape] = done;
+        try { localStorage.setItem(bestKey(run.shape), String(best)); } catch (e) { /* private mode */ }
     }
     card.className = row[1] + (passed ? '' : ' failed') + (record ? ' record' : '');
     document.getElementById('score').innerHTML = pc(score) + '<span class="pc">%</span>';
@@ -1315,6 +1505,29 @@ function confetti(n) {
         setTimeout(() => d.remove(), 2700);
     }
 }
+
+const shapeBox = document.getElementById('shapes');
+function setShape(k, restart) {
+    run.shape = k;
+    best = bests[k];
+    for (const b of shapeBox.children) b.classList.toggle('on', b.dataset.shape === k);
+    try { localStorage.setItem('pc-shape', k); } catch (e) { /* private mode */ }
+    if (restart) {
+        card.hidden = true; card.className = '';
+        easeView({ y: 0, k: 1 });
+        startRound(1);
+    } else showRound(run.round || 1);
+}
+shapeBox.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b || b.dataset.shape === run.shape) return;
+    e.stopPropagation();
+    setShape(b.dataset.shape, true);
+});
+try {
+    const k = localStorage.getItem('pc-shape');
+    if (SHAPE_KEYS.includes(k)) setShape(k, false);
+} catch (e) { /* private mode */ }
 
 fit();
 startRound(1);
