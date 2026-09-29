@@ -196,7 +196,7 @@ body {
     display: block; font-family: var(--font-display); font-size: 66px; line-height: .95;
     letter-spacing: .02em; color: var(--gold); margin: 6px 0 0;
 }
-#score .pc { font-size: .42em; opacity: .7; margin-left: 2px; }
+#score .pc { font-size: .34em; opacity: .65; margin-left: 5px; }
 #rating {
     margin: 2px 0 0; font-family: var(--font-display); font-size: 26px; letter-spacing: .03em;
 }
@@ -284,26 +284,23 @@ body {
 }
 
 /* the verdict, round by round */
-#pass { margin: 4px 0 0; font-size: 12px; font-weight: 900; letter-spacing: .04em; }
+#pass { margin: 5px 0 0; font-size: 12px; font-weight: 900; letter-spacing: .04em; opacity: .8; }
 #pass .ok { color: var(--good); }
 #pass .no { color: var(--danger); }
 #card.failed #score { color: var(--danger); }
 #card.failed .inner { border-color: var(--danger); }
 /* a best outranks the miss it arrived on: gold, not red, and pleased about it */
 #card.record.failed .inner { border-color: var(--gold); }
+#card.record.failed #score { color: var(--gold); }
 #card.record #ribbon { background: var(--gold); color: var(--ink); }
 #card.record .fh { display: block; }
 #card.record .fx { display: none; }
 #card.record.failed #note { display: block; opacity: .5; margin-top: 4px; }
 #summary {
-    display: none; margin: 11px 0 0;
+    display: none; margin: 10px 0 0; color: var(--gold);
     font-family: var(--font-display); font-size: 25px; letter-spacing: .02em;
 }
 #card.failed #summary { display: block; }
-#summary em {
-    font-style: normal; color: var(--gold);
-    margin-left: 9px; padding-left: 9px; border-left: 2.5px solid rgba(36,31,46,.18);
-}
 #summary .ico { width: 15px; height: 15px; vertical-align: -2px; margin-right: 3px; fill: var(--gold); }
 #card.failed #note { display: none; }
 
@@ -459,8 +456,8 @@ body {
             <p id="rating">Wonky</p>
             <p id="pass"></p>
             <p id="note"></p>
-            <div id="summary"><b id="sum-rounds">0</b> rounds<em><svg
-                class="ico"><use href="#i-cup"/></svg>best <span id="card-best">0</span></em></div>
+            <div id="summary"><svg class="ico"><use href="#i-cup"/></svg>best <span
+                id="card-best">0</span></div>
             <button class="btn" id="again">Round 2</button>
         </div>
     </div>
@@ -469,7 +466,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v50';
+const APP_VERSION = 'v51';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -501,21 +498,38 @@ function tone(t0, { freq, to, dur = .18, type = 'triangle', vol = .2, at = 0 }) 
     o.connect(g); g.connect(master);
     o.start(s); o.stop(s + dur + .02);
 }
-/* Unlocking the context is not the same as the context having started, and
-   that gap was the bug. resume() is a promise: inside the very first touch it
-   has been asked for but not granted, and until it is granted currentTime is
-   frozen at zero - so every note the first stroke scheduled was timestamped in
-   the past and thrown away. The second stroke was fine because by then it had
-   started, which is exactly what it looked like from the outside.
+/* Why the first stroke was silent, third time lucky.
 
-   So sound is never scheduled against a clock that is not running: if it is
-   running, play now; if it is not, wait for the promise and read the clock
-   again on the other side of it. */
+   A note is scheduled from a moment in time and stopped a moment later, so if
+   the moment it was given has already gone by, its stop time has gone too and
+   it never sounds at all - it is not quiet, it is skipped.
+
+   And that is exactly what the clock hands you. A context built inside a
+   gesture reports its state as 'running' immediately, which is what I trusted
+   last time, but the hardware has not started and currentTime is still sitting
+   at zero. Schedule against that zero, let the clock jump to a third of a
+   second when the audio thread finally wakes, and every note of the first
+   stroke is already in the past. By the second stroke the clock is real and
+   everything works, which is precisely how it looked from the outside.
+
+   So: wait for the clock itself to move rather than for the flag that claims
+   it has, and once it is moving give every sound a little lead time, since a
+   command still takes a moment to reach the audio thread. */
+const LEAD = .025;
+let clockGoing = false;
 function whenRunning(fn) {
     try {
         audioNow();
-        if (audioCtx.state === 'running') { fn(audioCtx.currentTime); return; }
-        audioCtx.resume().then(() => fn(audioCtx.currentTime)).catch(() => {});
+        const go = () => { clockGoing = true; fn(audioCtx.currentTime + LEAD); };
+        if (clockGoing || audioCtx.currentTime > 0) return go();
+        audioCtx.resume().catch(() => {});
+        let tries = 0;
+        const waitForTheClock = () => {
+            if (audioCtx.currentTime > 0) return go();
+            if (++tries > 90) return;          // a second of nothing: no audio here
+            requestAnimationFrame(waitForTheClock);
+        };
+        waitForTheClock();
     } catch (e) { /* no audio here, never mind */ }
 }
 const safely = fn => { if (!soundOn) return; whenRunning(fn); };
@@ -1783,7 +1797,10 @@ function settle(score) {
         try { localStorage.setItem(bestKey(run.mode), String(best)); } catch (e) { /* private mode */ }
     }
     card.className = row[1] + (passed ? '' : ' failed') + (record ? ' record' : '');
-    document.getElementById('score').innerHTML = pc(score) + '<span class="pc">%</span>';
+    // The card is about the run ending, so the run is what it leads with. How
+    // close the last one came is a detail, and it reads as one.
+    document.getElementById('score').innerHTML =
+        done + `<span class="pc">${done === 1 ? 'round' : 'rounds'}</span>`;
     // Every run ends on a miss, so a best was arriving in full mourning: red
     // border, red number, dead eyes and an insult. The miss is still what
     // happened, but the headline is the run - so on a best the celebration
@@ -1791,10 +1808,9 @@ function settle(score) {
     document.getElementById('rating').textContent = record ? pick(RECORD_LINES) : pick(row[3]);
     document.getElementById('pass').innerHTML = passed
         ? `<span class="ok">Through</span> &middot; needed ${pc(need)}%`
-        : `<span class="no">Run over</span> &middot; needed ${pc(need)}%`;
+        : `<span class="no">Run over</span> &middot; ${pc(score)}%, needed ${pc(need)}%`;
     document.getElementById('note').textContent = record ? pick(row[3])
         : `The dashed line is the ${SHAPES[run.form].name} you were aiming for.`;
-    document.getElementById('sum-rounds').textContent = done;
     document.getElementById('card-best').textContent = fmt(best);
     showRound(run.round);
     document.getElementById('again').textContent = passed ? `Round ${run.round + 1}` : 'Again!';
