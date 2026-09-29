@@ -291,7 +291,6 @@ body {
 #card.failed .inner { border-color: var(--danger); }
 /* a best outranks the miss it arrived on: gold, not red, and pleased about it */
 #card.record.failed .inner { border-color: var(--gold); }
-#card.record.failed #score { color: var(--gold); }
 #card.record #ribbon { background: var(--gold); color: var(--ink); }
 #card.record .fh { display: block; }
 #card.record .fx { display: none; }
@@ -469,7 +468,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v43';
+const APP_VERSION = 'v45';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -501,7 +500,24 @@ function tone(t0, { freq, to, dur = .18, type = 'triangle', vol = .2, at = 0 }) 
     o.connect(g); g.connect(master);
     o.start(s); o.stop(s + dur + .02);
 }
-const safely = fn => { if (!soundOn) return; try { fn(audioNow()); } catch (e) { /* no audio here */ } };
+/* Unlocking the context is not the same as the context having started, and
+   that gap was the bug. resume() is a promise: inside the very first touch it
+   has been asked for but not granted, and until it is granted currentTime is
+   frozen at zero - so every note the first stroke scheduled was timestamped in
+   the past and thrown away. The second stroke was fine because by then it had
+   started, which is exactly what it looked like from the outside.
+
+   So sound is never scheduled against a clock that is not running: if it is
+   running, play now; if it is not, wait for the promise and read the clock
+   again on the other side of it. */
+function whenRunning(fn) {
+    try {
+        audioNow();
+        if (audioCtx.state === 'running') { fn(audioCtx.currentTime); return; }
+        audioCtx.resume().then(() => fn(audioCtx.currentTime)).catch(() => {});
+    } catch (e) { /* no audio here, never mind */ }
+}
+const safely = fn => { if (!soundOn) return; whenRunning(fn); };
 let noiseBuf = null;
 function noise() {
     if (!noiseBuf) {
@@ -602,7 +618,7 @@ const HUM_VOICES = [
     { type: 'square',   lo: 130, hi: 470, q:  7, track: 3.0, rate: 9.4, depth: 7.0, vol: .11 },
     { type: 'triangle', lo: 300, hi: 990, q:  3, track: 5.0, rate: 4.3, depth: 2.4, vol: .20 },
 ];
-let hum = null, lastVoice = -1;
+let hum = null, lastVoice = -1, humWanted = false;
 function pickVoice() {
     let i = (Math.random() * HUM_VOICES.length) | 0;
     if (i === lastVoice) i = (i + 1 + ((Math.random() * (HUM_VOICES.length - 1)) | 0)) % HUM_VOICES.length;
@@ -612,8 +628,13 @@ function pickVoice() {
 }
 function humStart() {
     if (!soundOn) return;
+    humWanted = true;
+    // on that first stroke the hum can arrive a moment late, so it checks the
+    // pen is still down rather than starting a note nobody is waiting for
+    whenRunning(t => {
     try {
-        const t = audioNow(), v = pickVoice();
+        if (!humWanted || hum) return;
+        const v = pickVoice();
         const o = audioCtx.createOscillator(), g = audioCtx.createGain(),
               f = audioCtx.createBiquadFilter(), lfo = audioCtx.createOscillator(),
               la = audioCtx.createGain();
@@ -629,6 +650,7 @@ function humStart() {
         o.start(t); lfo.start(t);
         hum = { o, g, f, lfo, v };
     } catch (e) { /* no audio here, never mind */ }
+    });
 }
 function humTo(lap) {
     if (!hum) return;
@@ -640,6 +662,7 @@ function humTo(lap) {
     } catch (e) { /* never mind */ }
 }
 function humStop() {
+    humWanted = false;
     if (!hum) return;
     const h = hum; hum = null;
     try {
@@ -683,7 +706,7 @@ function unlockAudio() {
         b.start(0);
     } catch (e) { /* no audio here, never mind */ }
 }
-for (const ev of ['touchstart', 'pointerdown', 'mousedown', 'keydown'])
+for (const ev of ['touchstart', 'touchend', 'pointerdown', 'mousedown', 'keydown'])
     addEventListener(ev, unlockAudio, { capture: true, passive: true });
 // coming back from the lock screen or another app leaves it suspended again
 addEventListener('visibilitychange', () => {
@@ -1624,7 +1647,7 @@ function settle(score) {
     document.getElementById('rating').textContent = record ? pick(RECORD_LINES) : pick(row[3]);
     document.getElementById('pass').innerHTML = passed
         ? `<span class="ok">Through</span> &middot; needed ${pc(need)}%`
-        : `<span class="no">Needed ${pc(need)}%</span>`;
+        : `<span class="no">Run over</span> &middot; needed ${pc(need)}%`;
     document.getElementById('note').textContent = record ? pick(row[3])
         : `The dashed line is the ${SHAPES[run.form].name} you were aiming for.`;
     document.getElementById('sum-rounds').textContent = done;
@@ -1633,7 +1656,7 @@ function settle(score) {
     document.getElementById('again').textContent = passed ? `Round ${run.round + 1}` : 'Again!';
     if (!passed) run.live = false;
     // the moment the lap closes, before anything else has a say in it
-    jolt(passed || record, record && !passed ? '#f4b32c' : null);
+    jolt(passed, record && !passed ? '#f4b32c' : null);
     sting(passed || record);
     seedBurst(passed || record);
 
