@@ -419,7 +419,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v66';
+const APP_VERSION = 'v67';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -718,13 +718,42 @@ function startSession() {
         if (!wake) {
             wake = new Audio(SILENCE);
             wake.loop = true;
-            wake.volume = 0;
+            // Left at full volume on purpose. The data is silence, so nothing
+            // is heard either way - but a element at volume zero is one a
+            // browser can reasonably decide is not really playing audio, and
+            // therefore needs no audio session. Which was the whole point of it.
+            wake.volume = 1;
+            wake.muted = false;
             wake.setAttribute('playsinline', '');
         }
         const r = wake.play();
-        if (r && r.then) r.then(() => diag('silent element playing - session open'))
-                          .catch(e => diag('silent element REFUSED: ' + e.name));
+        if (r && r.then) r.then(() => {
+            diag('silent element playing - session open');
+            // The context was built while there was no session, and a context
+            // that starts life with nowhere to go can stay stuck for good. Now
+            // there is somewhere to go, so if it is still stuck, throw it away
+            // and build another - this time into an open session.
+            setTimeout(() => {
+                diag('element at ' + wake.currentTime.toFixed(2) + 's, paused=' + wake.paused);
+                if (audioCtx && audioCtx.state !== 'running' && audioCtx.currentTime === 0) rebuild();
+            }, 260);
+        }).catch(e => diag('silent element REFUSED: ' + e.name));
     } catch (e) { diag('silent element threw: ' + e.message); }
+}
+
+/* One rebuild, once, into a session that is now open. */
+let rebuilt = false;
+function rebuild() {
+    if (rebuilt) return;
+    rebuilt = true;
+    try {
+        diag('context still stuck - building a fresh one');
+        try { audioCtx.close(); } catch (e) { /* never mind */ }
+        audioCtx = null; master = null; keepAwake = null; unlocked = false; clockGoing = false;
+        unlockAudio();
+        setTimeout(() => diag('after the rebuild: state=' + audioCtx.state +
+            (audioCtx.currentTime > 0 ? ' clock RUNNING' : ' clock still at zero')), 300);
+    } catch (e) { diag('rebuild threw: ' + e.message); }
 }
 
 let unlocked = false, keepAwake = null;
@@ -752,7 +781,11 @@ function unlockAudio() {
     } catch (e) { diag('unlock threw: ' + e.message); }
 }
 for (const ev of ['touchstart', 'touchend', 'pointerdown', 'mousedown', 'keydown'])
-    addEventListener(ev, unlockAudio, { capture: true, passive: true });
+    addEventListener(ev, e => {
+        if (!unlocked) diag('first gesture: ' + e.type + ', browser calls it active=' +
+            (navigator.userActivation ? navigator.userActivation.isActive : 'unknown'));
+        unlockAudio();
+    }, { capture: true, passive: true });
 // coming back from the lock screen or another app leaves it suspended again
 addEventListener('visibilitychange', () => {
     if (!document.hidden && audioCtx && audioCtx.state === 'suspended')
