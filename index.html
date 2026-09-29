@@ -432,7 +432,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v56';
+const APP_VERSION = 'v57';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -872,7 +872,7 @@ const SHAPES = {
         'That is a peanut', 'He needs a scarf and a lie down',
         'Two circles having an argument', 'That is a cottage loaf',
         'He has melted somewhat', 'That is a figure eight'] },
-    bolt:     { name: 'lightning bolt', lines: 'odd', jokes: [
+    bolt:     { name: 'lightning bolt', from: 8, lines: 'odd', jokes: [
         'Zeus would not sign that off', 'Low voltage',
         'That is a squiggle with ambition', 'That is a very tired Z',
         'More of a gentle static', 'Struck twice, badly'] },
@@ -893,7 +893,7 @@ const SHAPES = {
     poo:      { name: 'poo', lines: 'odd', jokes: [
         'Fitting', 'That is a Mr Whippy', 'It has gone flat',
         'Needs more swirl', 'That is a soft serve', 'Well, quite'] },
-    sword:    { name: 'sword', lines: 'odd', jokes: [
+    sword:    { name: 'sword', from: 6, lines: 'odd', jokes: [
         'That is a butter knife', 'Excalibur it is not', 'That is a cross, surely',
         'Blunt', 'You would stop nobody with that', 'More of a letter opener'] },
     shield:   { name: 'shield', lines: 'odd', jokes: [
@@ -904,10 +904,13 @@ const SHAPES = {
         'That cat has been in a fight', 'One ear short', 'That is a bear',
         'The RSPCA would like a word', 'A potato with ears', 'More of a hamster'] },
 };
-// Every round is dealt, weighted so the familiar three carry it and a star is
-// a genuine event. Round one is always one of the three you would think of
-// first, so nobody meets a lightning bolt before they have drawn anything.
+/* Every round is dealt, weighted so the familiar three carry it and a star is
+   a genuine event. Round one is always one of the three you would think of
+   first, and the two with thin awkward limbs - the sword, and the lightning
+   bolt worst of all - are held back until the ladder is steep enough to
+   deserve them. */
 const OPENERS = ['circle', 'triangle', 'square'];
+const dealFor = n => pick(RANDOM_POOL.filter(k => (SHAPES[k].from || 0) <= n));
 const RANDOM_POOL = ['circle', 'circle', 'circle', 'triangle', 'triangle', 'triangle',
                      'square', 'square', 'square', 'pentagon', 'pentagon',
                      'hexagon', 'hexagon', 'star', 'star',
@@ -1822,7 +1825,7 @@ function startRound(n) {
     run.live = true;
     run.twists = rollTwists(n);
     run.limit = timeFor(n);
-    run.form = n === 1 ? pick(OPENERS) : pick(RANDOM_POOL);
+    run.form = n === 1 ? pick(OPENERS) : dealFor(n);
     run.way = has('way') ? (natural ? -natural : -1) : 0;
     run.drift = Math.min(44, 13 + (n - TWISTS.drift.from) * 2.8);
     run.swarmN = Math.min(26, 8 + (n - TWISTS.swarm.from) * 1.6) | 0;
