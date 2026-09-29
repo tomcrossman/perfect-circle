@@ -290,29 +290,43 @@ body {
 /* ============================================================
    DRAWN, NOT PRINTED
    Nothing on a sheet of paper has four matching corners, and no pen lands
-   twice in the same place. So the chrome gets an uneven radius, a second
-   pass of the outline slightly off register, and a degree or so of tilt -
-   which is the whole difference between a dialog and a doodle.
+   twice in the same place. So every panel gets a radius where no two corners
+   agree, two further passes of the outline that agree neither with the border
+   nor with each other, and a degree or two of tilt - which is the whole
+   difference between a dialog and a doodle.
    ============================================================ */
 .plate, #mute, #clock, #card .inner, .btn, #ribbon {
-    border-radius: 16px 10px 17px 11px / 11px 17px 10px 16px;
+    border-radius: 22px 9px 19px 12px / 11px 20px 10px 23px;
 }
 .plate, #mute, #clock, #card .inner, .btn { position: relative; }
-.plate::after, #mute::after, #clock::after, #card .inner::after, .btn::after {
-    content: ''; position: absolute; inset: -2px; pointer-events: none;
-    border: 2.4px solid var(--ink); opacity: .28;
-    border-radius: 11px 17px 10px 16px / 17px 11px 16px 10px;
-    transform: rotate(.6deg);
+.plate::before, #mute::before, #clock::before, #card .inner::before, .btn::before,
+.plate::after,  #mute::after,  #clock::after,  #card .inner::after,  .btn::after {
+    content: ''; position: absolute; pointer-events: none;
+    border: 2.4px solid var(--ink);
 }
-#card .inner::after { inset: -4px; border-width: 3px; transform: rotate(-.45deg); }
+/* the inset drifts round rather than sitting evenly, so the second line runs
+   wide on one side and tight on the other, the way an overdrawn box does */
+.plate::after, #mute::after, #clock::after, #card .inner::after, .btn::after {
+    inset: -4px -1px -2px -3px; opacity: .34;
+    border-radius: 10px 21px 11px 20px / 20px 11px 22px 10px;
+    transform: rotate(1.15deg);
+}
+.plate::before, #mute::before, #clock::before, #card .inner::before, .btn::before {
+    inset: -1px -3px -4px -1px; opacity: .17;
+    border-radius: 19px 13px 23px 9px / 13px 22px 9px 19px;
+    transform: rotate(-.95deg);
+}
+#card .inner::after  { inset: -6px -2px -3px -5px; border-width: 3px; transform: rotate(-.7deg); }
+#card .inner::before { inset: -2px -5px -6px -2px; border-width: 2.6px; transform: rotate(1deg); }
+#ribbon { z-index: 3; }           /* not underneath the card's extra passes */
 /* a tilt each, so the row never lines up like a toolbar. These are the
    independent rotate property on purpose: transform is spoken for by the
    press, the beat and the entrances, and they all have to keep working */
-.plate { rotate: -.7deg; }
-#mute  { rotate: 1.1deg; }
-#clock { rotate: .5deg; }
-.btn   { rotate: -.6deg; }
-#card .inner { rotate: .35deg; }
+.plate { rotate: -1.3deg; }
+#mute  { rotate: 1.9deg; }
+#clock { rotate: .9deg; }
+.btn   { rotate: -1.1deg; }
+#card .inner { rotate: .6deg; }
 /* the faintest pencil tooth inside the panels */
 #card .inner, .plate, #clock {
     background-image: repeating-linear-gradient(48deg,
@@ -320,16 +334,18 @@ body {
 }
 .cheer { z-index: 2; }            /* over the card, not under its second outline */
 /* and the badge is a circle drawn by the same hand, so it is not a circle:
-   an uneven one, with the second pass just inside the rim - the badge clips
+   an uneven one, with the further passes just inside the rim - the badge clips
    its own overflow, so an outline hung outside it would be cut off */
-.cheer { border-radius: 56% 44% 53% 47% / 46% 55% 45% 54%; }
-.cheer::after {
-    content: ''; position: absolute; inset: 2px; pointer-events: none;
-    border: 2.2px solid var(--ink); opacity: .26;
-    border-radius: 45% 55% 47% 53% / 55% 45% 54% 46%;
-    transform: rotate(2.6deg);
+.cheer { border-radius: 58% 42% 54% 46% / 45% 57% 43% 55%; }
+.cheer::before, .cheer::after {
+    content: ''; position: absolute; pointer-events: none;
+    border: 2.2px solid var(--ink);
 }
-#clock .track { border-radius: 9px 5px 10px 6px / 6px 10px 5px 9px; }
+.cheer::after  { inset: 2px; opacity: .3;
+    border-radius: 44% 56% 46% 54% / 56% 44% 55% 45%; transform: rotate(3.2deg); }
+.cheer::before { inset: 5px; opacity: .14;
+    border-radius: 55% 45% 57% 43% / 43% 56% 44% 57%; transform: rotate(-4deg); }
+#clock .track { border-radius: 11px 5px 12px 6px / 6px 12px 5px 11px; }
 #clock i { border-radius: inherit; }
 </style>
 </head>
@@ -402,7 +418,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v35';
+const APP_VERSION = 'v36';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
