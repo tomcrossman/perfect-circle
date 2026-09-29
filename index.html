@@ -237,21 +237,6 @@ body {
 @keyframes lowPulse { from { transform: translateX(-50%) scale(1); }
                       to   { transform: translateX(-50%) scale(1.05); } }
 
-/* what this round is going to do to you */
-#twists {
-    position: absolute; top: 96px; left: 0; right: 0; z-index: 3;
-    display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;
-    padding: 0 14px; pointer-events: none;
-}
-.twist {
-    font-size: 10px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase;
-    padding: 4px 9px 3px; color: var(--panel); background: var(--ink);
-    border-radius: 9px; box-shadow: 2px 2px 0 rgba(36,31,46,.25);
-    animation: twistIn .4s cubic-bezier(.2,1.5,.4,1) both;
-}
-@keyframes twistIn { from { transform: translateY(-8px) scale(.8); opacity: 0; }
-                     to   { transform: none; opacity: 1; } }
-
 /* the round you are on, announced then faded */
 #banner {
     position: absolute; left: 0; right: 0; top: 34%; z-index: 4;
@@ -330,7 +315,6 @@ body {
     </div>
 
     <div id="clock"><svg class="ico"><use href="#i-clock"/></svg><span class="track"><i></i></span></div>
-    <div id="twists"></div>
     <div id="banner"></div>
 
     <div id="live">0.0</div>
@@ -347,7 +331,6 @@ body {
             <div id="summary">
                 <div class="tot">
                     <div><span>Rounds</span><b id="sum-rounds">0</b></div>
-                    <div><span>Points</span><b id="sum-total">0</b></div>
                 </div>
                 <div id="bestline"><svg class="ico"><use href="#i-cup"/></svg>Best <span id="card-best">0</span> rounds</div>
             </div>
@@ -359,7 +342,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v24';
+const APP_VERSION = 'v28';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -531,7 +514,6 @@ const promptEl = document.getElementById('prompt');
 const liveEl = document.getElementById('live');
 const card = document.getElementById('card');
 const clockEl = document.getElementById('clock'), clockFill = clockEl.querySelector('i');
-const twistEl = document.getElementById('twists');
 const bannerEl = document.getElementById('banner');
 
 let W = 0, H = 0, CX = 0, CY = 0;
@@ -562,10 +544,13 @@ addEventListener('resize', fit);
 // every round from the first, and the time it gives you shrinks instead. That
 // leaves these three, which are all about what you can see rather than how long
 // you have, to be the variable part.
+// Never announced: your ink starts vanishing, the dot wanders off, the page
+// fills with decoys. Finding out is the moment, and a label ahead of time only
+// spoils it and sits over the drawing while it does.
 const TWISTS = {
-    fade:  { from: 4,  name: 'Fading ink' },
-    drift: { from: 6,  name: 'Drifting dot' },
-    swarm: { from: 8,  name: 'Swarm' },
+    fade:  { from: 4 },
+    drift: { from: 6 },
+    swarm: { from: 8 },
 };
 const TWIST_KEYS = Object.keys(TWISTS);
 // the bar climbs quickly at first and then creeps, so it is always just
@@ -576,7 +561,7 @@ const twistCount = r => Math.min(3, 1 + Math.floor((r - 4) / 4));
 // generous to begin with, and never quite enough later on
 const timeFor = r => 1.6 + 3.4 * Math.pow(.92, r - 1);
 
-const run = { round: 0, total: 0, live: false, twists: [], limit: 0, drift: 0, swarmN: 0 };
+const run = { round: 0, live: false, twists: [], limit: 0, drift: 0, swarmN: 0, grip: 'pencil' };
 const has = k => run.twists.includes(k);
 // the clock is always on, so nothing has to ask
 
@@ -618,6 +603,30 @@ function swarmAt(ms) {
         return [CX + Math.cos(a) * r, CY + Math.sin(a) * r, s.sz];
     });
 }
+
+/* ---- the hand ---------------------------------------------------------
+   Drawn in pen space - tip at the origin, barrel along +x, fist over the top -
+   and tipped 42 degrees, so the point lands exactly where your finger is and
+   the hand trails away down and right. That is where a right hander's hand
+   already is, and it keeps it off the line being drawn.
+
+   A different thing to draw with every round, which is the joke. */
+const GRIPS = {
+    'pencil': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 140"><g transform="rotate(42 10 10) translate(10 10)"><path d="M 0 0 L 17 -6 L 17 6 Z" fill="#E8C9A0" stroke="#241F2E" stroke-width="3" stroke-linejoin="round"/><path d="M 0 0 L 8 -2.8 L 8 2.8 Z" fill="#241F2E" stroke="none"/><rect x="16" y="-6.0" width="66" height="12" rx="1" fill="#F4B32C" stroke="#241F2E" stroke-width="3" stroke-linejoin="round"/><path d="M 74 -20 C 98 -22, 122 -8, 130 14 C 138 36, 128 56, 108 60 L 78 66 C 60 69, 48 58, 48 40 L 48 8 C 48 -8, 58 -19, 74 -20 Z" fill="#FFDCC0" stroke="#241F2E" stroke-width="3.6" stroke-linejoin="round"/><path d="M 62 16 C 74 8, 92 10, 100 20 M 60 34 C 74 26, 94 28, 104 38 M 62 52 C 74 46, 92 48, 100 56" fill="none" stroke="#E2A98C" stroke-width="2.6" stroke-linecap="round"/><path d="M 44 -6 C 52 -22, 72 -28, 84 -20 C 94 -13, 92 2, 80 6 C 68 10, 52 6, 44 -6 Z" fill="#FFDCC0" stroke="#241F2E" stroke-width="3.4" stroke-linejoin="round"/></g></svg>`,
+    'biro': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 140"><g transform="rotate(42 10 10) translate(10 10)"><path d="M 0 0 L 14 -4.5 L 14 4.5 Z" fill="#3C4254" stroke="#241F2E" stroke-width="2.6" stroke-linejoin="round"/><rect x="13" y="-5.0" width="12" height="10" rx="2" fill="#E6EAF2" stroke="#241F2E" stroke-width="3" stroke-linejoin="round"/><rect x="24" y="-5.5" width="58" height="11" rx="3" fill="#2FA8E0" stroke="#241F2E" stroke-width="3" stroke-linejoin="round"/><path d="M 74 -20 C 98 -22, 122 -8, 130 14 C 138 36, 128 56, 108 60 L 78 66 C 60 69, 48 58, 48 40 L 48 8 C 48 -8, 58 -19, 74 -20 Z" fill="#FFDCC0" stroke="#241F2E" stroke-width="3.6" stroke-linejoin="round"/><path d="M 62 16 C 74 8, 92 10, 100 20 M 60 34 C 74 26, 94 28, 104 38 M 62 52 C 74 46, 92 48, 100 56" fill="none" stroke="#E2A98C" stroke-width="2.6" stroke-linecap="round"/><path d="M 44 -6 C 52 -22, 72 -28, 84 -20 C 94 -13, 92 2, 80 6 C 68 10, 52 6, 44 -6 Z" fill="#FFDCC0" stroke="#241F2E" stroke-width="3.4" stroke-linejoin="round"/></g></svg>`,
+    'crayon': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 140"><g transform="rotate(42 10 10) translate(10 10)"><path d="M 0 0 L 15 -8 L 15 8 Z" fill="#E8524F" stroke="#241F2E" stroke-width="3" stroke-linejoin="round"/><rect x="14" y="-8.5" width="56" height="17" rx="2" fill="#E8524F" stroke="#241F2E" stroke-width="3" stroke-linejoin="round"/><rect x="24" y="-9.5" width="36" height="19" rx="1" fill="#FBEFD8" stroke="#241F2E" stroke-width="2.6" stroke-linejoin="round"/><path d="M 32 -8 L 32 8 M 44 -8 L 44 8 M 56 -8 L 56 8" stroke="#E8524F" stroke-width="2.2" opacity=".5"/><path d="M 74 -20 C 98 -22, 122 -8, 130 14 C 138 36, 128 56, 108 60 L 78 66 C 60 69, 48 58, 48 40 L 48 8 C 48 -8, 58 -19, 74 -20 Z" fill="#FFDCC0" stroke="#241F2E" stroke-width="3.6" stroke-linejoin="round"/><path d="M 62 16 C 74 8, 92 10, 100 20 M 60 34 C 74 26, 94 28, 104 38 M 62 52 C 74 46, 92 48, 100 56" fill="none" stroke="#E2A98C" stroke-width="2.6" stroke-linecap="round"/><path d="M 44 -6 C 52 -22, 72 -28, 84 -20 C 94 -13, 92 2, 80 6 C 68 10, 52 6, 44 -6 Z" fill="#FFDCC0" stroke="#241F2E" stroke-width="3.4" stroke-linejoin="round"/></g></svg>`,
+    'marker': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 140"><g transform="rotate(42 10 10) translate(10 10)"><path d="M 0 -6 L 13 -9 L 13 9 L 0 6 Z" fill="#3C4254" stroke="#241F2E" stroke-width="3" stroke-linejoin="round"/><rect x="12" y="-10.5" width="10" height="21" rx="2" fill="#E6EAF2" stroke="#241F2E" stroke-width="3" stroke-linejoin="round"/><rect x="21" y="-10.5" width="56" height="21" rx="4" fill="#241F2E" stroke="#241F2E" stroke-width="3" stroke-linejoin="round"/><path d="M 74 -20 C 98 -22, 122 -8, 130 14 C 138 36, 128 56, 108 60 L 78 66 C 60 69, 48 58, 48 40 L 48 8 C 48 -8, 58 -19, 74 -20 Z" fill="#FFDCC0" stroke="#241F2E" stroke-width="3.6" stroke-linejoin="round"/><path d="M 62 16 C 74 8, 92 10, 100 20 M 60 34 C 74 26, 94 28, 104 38 M 62 52 C 74 46, 92 48, 100 56" fill="none" stroke="#E2A98C" stroke-width="2.6" stroke-linecap="round"/><path d="M 44 -6 C 52 -22, 72 -28, 84 -20 C 94 -13, 92 2, 80 6 C 68 10, 52 6, 44 -6 Z" fill="#FFDCC0" stroke="#241F2E" stroke-width="3.4" stroke-linejoin="round"/></g></svg>`,
+    'quill': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 140"><g transform="rotate(42 10 10) translate(10 10)"><path d="M 0 0 L 20 -3 L 20 3 Z" fill="#3C4254" stroke="#241F2E" stroke-width="2.6" stroke-linejoin="round"/><path d="M 18 0 C 32 -4, 48 -8, 60 -8 C 74 -8, 86 -2, 88 8 C 76 12, 60 10, 46 6 C 34 3, 24 1, 18 0 Z" fill="#F6FAFD" stroke="#241F2E" stroke-width="3" stroke-linejoin="round"/><path d="M 28 -2 L 36 5 M 42 -4 L 50 4 M 56 -5 L 64 3 M 70 -4 L 76 4" fill="none" stroke="#C9D4E0" stroke-width="2"/><path d="M 74 -20 C 98 -22, 122 -8, 130 14 C 138 36, 128 56, 108 60 L 78 66 C 60 69, 48 58, 48 40 L 48 8 C 48 -8, 58 -19, 74 -20 Z" fill="#FFDCC0" stroke="#241F2E" stroke-width="3.6" stroke-linejoin="round"/><path d="M 62 16 C 74 8, 92 10, 100 20 M 60 34 C 74 26, 94 28, 104 38 M 62 52 C 74 46, 92 48, 100 56" fill="none" stroke="#E2A98C" stroke-width="2.6" stroke-linecap="round"/><path d="M 44 -6 C 52 -22, 72 -28, 84 -20 C 94 -13, 92 2, 80 6 C 68 10, 52 6, 44 -6 Z" fill="#FFDCC0" stroke="#241F2E" stroke-width="3.4" stroke-linejoin="round"/></g></svg>`,
+    'carrot': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 140"><g transform="rotate(42 10 10) translate(10 10)"><path d="M 0 0 L 20 -10 L 20 10 Z" fill="#F08A34" stroke="#241F2E" stroke-width="3" stroke-linejoin="round"/><rect x="19" y="-10.0" width="52" height="20" rx="3" fill="#F08A34" stroke="#241F2E" stroke-width="3" stroke-linejoin="round"/><path d="M 26 -10 L 30 -4 M 40 10 L 44 4 M 54 -10 L 58 -4 M 68 10 L 72 4" fill="none" stroke="#C96A1E" stroke-width="2.4" stroke-linecap="round"/><path d="M 74 -20 C 98 -22, 122 -8, 130 14 C 138 36, 128 56, 108 60 L 78 66 C 60 69, 48 58, 48 40 L 48 8 C 48 -8, 58 -19, 74 -20 Z" fill="#FFDCC0" stroke="#241F2E" stroke-width="3.6" stroke-linejoin="round"/><path d="M 62 16 C 74 8, 92 10, 100 20 M 60 34 C 74 26, 94 28, 104 38 M 62 52 C 74 46, 92 48, 100 56" fill="none" stroke="#E2A98C" stroke-width="2.6" stroke-linecap="round"/><path d="M 44 -6 C 52 -22, 72 -28, 84 -20 C 94 -13, 92 2, 80 6 C 68 10, 52 6, 44 -6 Z" fill="#FFDCC0" stroke="#241F2E" stroke-width="3.4" stroke-linejoin="round"/></g></svg>`,
+};
+const GRIP_KEYS = Object.keys(GRIPS);
+const GRIP_IMGS = {};
+for (const k of GRIP_KEYS) {
+    const img = new Image();
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(GRIPS[k]);
+    GRIP_IMGS[k] = img;
+}
+const GRIP_W = 150, GRIP_H = 140, GRIP_TIP = 10, GRIP_SCALE = .78;
 
 /* ============================================================
    SCORING
@@ -818,6 +827,15 @@ function draw() {
         }
         ctx.globalAlpha = 1;
     }
+
+    // whoever is doing the drawing, at the sharp end of it
+    if (drawing && pts.length) {
+        const img = GRIP_IMGS[run.grip];
+        if (img && img.complete && img.naturalWidth) {
+            const p = pts[pts.length - 1], k = GRIP_SCALE;
+            ctx.drawImage(img, p[0] - GRIP_TIP * k, p[1] - GRIP_TIP * k, GRIP_W * k, GRIP_H * k);
+        }
+    }
     // every path out of here goes past this: an early return would leave the
     // view transform on the stack, and the dot would walk off the screen
     ctx.restore();
@@ -858,7 +876,7 @@ function frame() {
     // the dot moving, the swarm drifting, the ink fading and the burst all need
     // repainting - and the burst outlives the round it ended, so it is checked
     // whether or not one is still going
-    if (burst || (run.live && (has('drift') || has('swarm') || (has('fade') && drawing)))) draw();
+    if (burst || drawing || (run.live && (has('drift') || has('swarm')))) draw();
 }
 
 /* ============================================================
@@ -1058,12 +1076,12 @@ function startRound(n) {
     run.drift = Math.min(44, 13 + (n - TWISTS.drift.from) * 2.8);
     run.swarmN = Math.min(26, 8 + (n - TWISTS.swarm.from) * 1.6) | 0;
     roundT0 = now();
+    run.grip = GRIP_KEYS[(Math.random() * GRIP_KEYS.length) | 0];
     if (has('swarm')) seedSwarm(run.swarmN);
     armClock();
     pts = []; verdict = null; drawing = false;
     view = { y: 0, k: 1 };
 
-    twistEl.innerHTML = run.twists.map(k => `<div class="twist">${TWISTS[k].name}</div>`).join('');
     bannerEl.innerHTML = `<span class="r">Round ${n}</span>` +
         `<span class="need">${pc(passMark(n))}% in ${run.limit.toFixed(1)}s</span>`;
     bannerEl.classList.remove('go');
@@ -1085,7 +1103,6 @@ function settle(score) {
     const need = passMark(run.round);
     const passed = score >= need;
     const row = RATINGS.find(r => score >= r[0]);
-    if (passed) run.total += Math.round(score);
     const done = run.round - (passed ? 0 : 1);          // rounds actually completed
     const record = !passed && done > best;
     if (record) {
@@ -1101,7 +1118,6 @@ function settle(score) {
     document.getElementById('note').textContent =
         'The dashed ring is the circle you were aiming for.';
     document.getElementById('sum-rounds').textContent = done;
-    document.getElementById('sum-total').textContent = fmt(run.total);
     document.getElementById('card-best').textContent = fmt(best);
     showRound(run.round);
     document.getElementById('again').textContent = passed ? `Round ${run.round + 1}` : 'Again!';
@@ -1124,8 +1140,7 @@ document.getElementById('again').addEventListener('click', e => {
     e.stopPropagation();
     card.hidden = true;
     card.className = '';
-    if (run.live) startRound(run.round + 1);
-    else { run.total = 0; startRound(1); }
+    startRound(run.live ? run.round + 1 : 1);
     easeView({ y: 0, k: 1 });
 });
 

@@ -14,8 +14,8 @@ pass mark, and it climbs:
 
     need = 88 - 48 * 0.88 ^ (round - 1)
 
-Round 1 asks for 40%, round 8 for 68%, round 20 for 84%. Miss it and the run
-is over; your score is the total of the rounds you got through.
+Round 1 asks for 40%, round 8 for 68%, round 20 for 84%. Miss it and the run is over. How far you got is the score - the bar rises every
+round, so the round you reached is the difficulty you survived.
 
 A clock runs on every round from the first. Drawing slowly is the one real
 cheat in this game - take long enough and anyone can trace a careful circle -
@@ -72,6 +72,12 @@ they are the funny ones. A line stays put whether you got through or not.
 Closing the lap is answered straight away, before the card has any say in it:
 a slap and a flinch of the whole screen for a miss, a sweep and a swell for a
 pass, with a burst thrown off the line either way.
+
+Something is doing the drawing, and it is different every round - a pencil, a
+biro, a crayon, a marker, a quill, a carrot. The sprite is drawn in pen space
+and tipped over, so the point lands exactly where your finger is and the hand
+trails away down and right, which is where a right hander's hand already is and
+out of the way of the line.
 
 While the pen is down you hear an "oooooooh" that runs until you let go.
 Getting through a round is met with one of five cheers; missing the mark with
