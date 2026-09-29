@@ -1,5 +1,5 @@
 /* Cache the game so it keeps working with no signal. Bump CACHE on release. */
-const CACHE = 'perfect-circle-v15';
+const CACHE = 'perfect-circle-v17';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png',
                 './icon-512.png', './icon-512-maskable.png', './oooooooh.mp4', './yay-1.mp4',
                 './yay-2.mp4', './yay-3.mp4', './yay-4.mp4', './yay-5.mp4', './boo-1.mp4',

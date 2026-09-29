@@ -3,7 +3,9 @@
 Draw a circle around the dot in one stroke. The closer you hold the same
 distance from it all the way round, the higher you score.
 
-A single self-contained `index.html`, no build step, served from GitHub Pages.
+A single self-contained `index.html` and a handful of voice clips, no build
+step, served from GitHub Pages. It is drawn on squared paper, because that is
+what you draw circles on.
 
 ## The run
 
@@ -56,6 +58,10 @@ comes from the score and the expression comes from the pass mark.
 
 Each band has its own pool of lines, and the bad ones have the most, because
 they are the funny ones. A line stays put whether you got through or not.
+
+Closing the lap is answered straight away, before the card has any say in it:
+a slap and a flinch of the whole screen for a miss, a sweep and a swell for a
+pass, with a burst thrown off the line either way.
 
 While the pen is down you hear an "oooooooh" that runs until you let go.
 Getting through a round is met with one of five cheers; missing the mark with

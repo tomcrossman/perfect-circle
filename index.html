@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Perfect Circle</title>
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#cfe4f7">
+<meta name="theme-color" content="#FBF7EC">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Perfect Circle">
 <meta name="mobile-web-app-capable" content="yes">
@@ -21,6 +21,9 @@
    ============================================================ */
 :root {
     --ink:    #241F2E;
+    --paper:  #FBF7EC;
+    --rule:   rgba(64, 92, 122, .085);
+    --rule2:  rgba(64, 92, 122, .15);
     --panel:  #fffdf8;
     --gold:   #f4b32c;
     --blue:   #2fa8e0;
@@ -36,9 +39,20 @@ html, body { height: 100%; }
 body {
     margin: 0; overflow: hidden;
     font-family: var(--font); color: var(--ink);
-    background: linear-gradient(#bcdcf7 0%, #d7eaf9 55%, #eaf3fb 100%);
+    background: var(--paper);
 }
-#app { position: fixed; inset: 0; overflow: hidden; touch-action: none; }
+/* squared paper: a fine grid with a heavier one every fifth line, and a little
+   warmth in the corners so it reads as a sheet rather than a spreadsheet */
+#app {
+    position: fixed; inset: 0; overflow: hidden; touch-action: none;
+    background:
+        radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(120, 96, 52, .09) 100%),
+        repeating-linear-gradient(0deg, var(--rule2) 0 1.4px, transparent 1.4px 125px),
+        repeating-linear-gradient(90deg, var(--rule2) 0 1.4px, transparent 1.4px 125px),
+        repeating-linear-gradient(0deg, var(--rule) 0 1px, transparent 1px 25px),
+        repeating-linear-gradient(90deg, var(--rule) 0 1px, transparent 1px 25px),
+        var(--paper);
+}
 
 /* the paper you draw on */
 #pad { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -170,6 +184,23 @@ body {
     position: absolute; z-index: 9; pointer-events: none; top: -30px;
     width: 12px; height: 16px; border: 2.5px solid var(--ink); border-radius: 3px;
 }
+/* the moment the lap closes */
+#flash {
+    position: absolute; inset: 0; z-index: 6; pointer-events: none; opacity: 0;
+}
+#app.shake { animation: shake .42s cubic-bezier(.36,.07,.19,.97) both; }
+@keyframes shake {
+    10%, 90% { transform: translate3d(-3px, 1px, 0); }
+    20%, 80% { transform: translate3d(7px, -2px, 0); }
+    30%, 50%, 70% { transform: translate3d(-11px, 2px, 0); }
+    40%, 60% { transform: translate3d(11px, -1px, 0); }
+}
+#app.lift { animation: lift .5s cubic-bezier(.2,1.4,.4,1) both; }
+@keyframes lift {
+    0%   { transform: scale(1); }
+    35%  { transform: scale(1.022); }
+    100% { transform: scale(1); }
+}
 #version { position: absolute; bottom: 8px; right: 10px; z-index: 3;
            font-size: 9px; font-weight: 800; letter-spacing: .1em; opacity: .3; }
 
@@ -180,12 +211,18 @@ body {
 .plate.mid { font-size: 20px; opacity: .95; }
 /* the clock, when the round has one */
 #clock {
-    position: absolute; top: 92px; left: 50%; transform: translateX(-50%); z-index: 3;
-    width: min(240px, 70vw); height: 15px; display: none;
-    background: rgba(36,31,46,.12); border: 2.5px solid var(--ink); border-radius: 8px;
-    overflow: hidden; box-shadow: var(--pop);
+    position: absolute; top: 62px; left: 50%; transform: translateX(-50%); z-index: 3;
+    width: min(250px, 72vw); display: none; align-items: center; gap: 7px;
+    padding: 4px 7px;
+    background: var(--panel); border: 3px solid var(--ink); border-radius: 13px;
+    box-shadow: var(--pop);
 }
-#clock.on { display: block; }
+#clock.on { display: flex; }
+#clock .ico { width: 17px; height: 17px; flex: none; fill: var(--ink); }
+#clock .track {
+    flex: 1; height: 13px; border-radius: 7px; overflow: hidden;
+    background: rgba(36,31,46,.12); border: 2px solid var(--ink);
+}
 #clock i { display: block; height: 100%; width: 100%; background: var(--gold); }
 #clock.low i { background: var(--danger); }
 #clock.low { animation: lowPulse .3s ease-in-out infinite alternate; }
@@ -194,7 +231,7 @@ body {
 
 /* what this round is going to do to you */
 #twists {
-    position: absolute; top: 62px; left: 0; right: 0; z-index: 3;
+    position: absolute; top: 96px; left: 0; right: 0; z-index: 3;
     display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;
     padding: 0 14px; pointer-events: none;
 }
@@ -252,6 +289,15 @@ body {
         <path d="M 3.8 2.6 H 1.8 V 4.2 C 1.8 5.5, 2.8 6.2, 3.8 6.2" fill="none"
               stroke="currentColor" stroke-width="1.3"/>
     </symbol>
+    <symbol id="i-clock" viewBox="0 0 14 14">
+        <path d="M 5.3 .5 H 8.7 V 2.2 H 5.3 Z"/>
+        <path fill-rule="evenodd" d="M 7 2.1 C 10.2 2.1 12.7 4.6 12.7 7.8 C 12.7 10.9 10.2 13.5 7 13.5
+                 C 3.8 13.5 1.3 10.9 1.3 7.8 C 1.3 4.6 3.8 2.1 7 2.1 Z
+                 M 7 3.9 C 4.8 3.9 3.1 5.6 3.1 7.8 C 3.1 9.9 4.8 11.7 7 11.7
+                 C 9.2 11.7 10.9 9.9 10.9 7.8 C 10.9 5.6 9.2 3.9 7 3.9 Z"/>
+        <path d="M 6.4 5.1 H 7.6 V 8.3 H 6.4 Z"/>
+        <path d="M 11 2 L 12.6 3.6 L 11.5 4.7 L 9.9 3.1 Z"/>
+    </symbol>
     <symbol id="i-star" viewBox="0 0 14 14">
         <path d="M 7 1.2 L 8.8 5.2 L 13 5.7 L 9.8 8.6 L 10.7 12.8 L 7 10.6 L 3.3 12.8
                  L 4.2 8.6 L 1 5.7 L 5.2 5.2 Z"/>
@@ -260,6 +306,7 @@ body {
 
 <div id="app">
     <canvas id="pad"></canvas>
+    <div id="flash"></div>
 
     <div id="hud">
         <div class="plate"><svg class="ico"><use href="#i-star"/></svg><span id="total-val">0</span></div>
@@ -274,7 +321,7 @@ body {
         </button>
     </div>
 
-    <div id="clock"><i></i></div>
+    <div id="clock"><svg class="ico"><use href="#i-clock"/></svg><span class="track"><i></i></span></div>
     <div id="twists"></div>
     <div id="banner"></div>
 
@@ -304,7 +351,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v15';
+const APP_VERSION = 'v19';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -337,11 +384,51 @@ function tone(t0, { freq, to, dur = .18, type = 'triangle', vol = .2, at = 0 }) 
     o.start(s); o.stop(s + dur + .02);
 }
 const safely = fn => { if (!soundOn) return; try { fn(audioNow()); } catch (e) { /* no audio here */ } };
+let noiseBuf = null;
+function noise() {
+    if (!noiseBuf) {
+        const len = Math.floor(audioCtx.sampleRate * .6);
+        noiseBuf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+        const d = noiseBuf.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    }
+    return noiseBuf;
+}
+function hiss(t0, { hp = 1200, lp = 16000, dur = .12, vol = .3, at = 0 }) {
+    const n = audioCtx.createBufferSource(), h = audioCtx.createBiquadFilter(),
+          l = audioCtx.createBiquadFilter(), g = audioCtx.createGain(), s = t0 + at;
+    n.buffer = noise();
+    h.type = 'highpass'; h.frequency.value = hp;
+    l.type = 'lowpass';  l.frequency.value = lp;
+    g.gain.setValueAtTime(vol, s);
+    g.gain.exponentialRampToValueAtTime(.0001, s + dur);
+    n.connect(h); h.connect(l); l.connect(g); g.connect(master);
+    n.start(s); n.stop(s + dur + .02);
+}
 // the better the circle, the higher and happier the chime
 const chime = score => safely(t => {
     const base = 300 + score * 5.2;
     [0, 4, 7].slice(0, score > 80 ? 3 : score > 55 ? 2 : 1).forEach((semi, i) =>
         tone(t, { freq: base * Math.pow(2, semi / 12), dur: .34, vol: .19, at: i * .07 }));
+});
+// A short sting, fired at the same instant as the voice. The recordings all
+// open with a breath of silence, and without something under it the moment of
+// truth lands a beat late.
+const sting = up => safely(t => {
+    if (up) {
+        // a sweep up into a bright pop, and a shimmer over the top
+        tone(t, { freq: 240, to: 880, dur: .19, type: 'sawtooth', vol: .12 });
+        tone(t, { freq: 620, dur: .13, type: 'triangle', vol: .2, at: .14 });
+        tone(t, { freq: 930, dur: .18, type: 'triangle', vol: .18, at: .2 });
+        tone(t, { freq: 1240, dur: .22, type: 'square', vol: .08, at: .2 });
+        hiss(t, { hp: 5200, dur: .3, vol: .16, at: .16 });
+    } else {
+        // a slap: a crack of noise on top of the floor dropping out from under you
+        hiss(t, { hp: 900, lp: 7000, dur: .12, vol: .42 });
+        tone(t, { freq: 250, to: 62, dur: .3, type: 'sawtooth', vol: .22 });
+        tone(t, { freq: 130, to: 48, dur: .34, type: 'sine', vol: .2, at: .02 });
+        hiss(t, { hp: 200, lp: 1400, dur: .22, vol: .18, at: .01 });
+    }
 });
 const fanfare = () => safely(t => {
     [523, 659, 784, 1046, 1318].forEach((f, i) => tone(t, { freq: f, dur: .4, vol: .2, at: i * .09 }));
@@ -598,6 +685,20 @@ function shade(off) {
    DRAWING IT ALL
    ============================================================ */
 let pts = [], drawing = false, verdict = null, penT0 = 0;
+// what the moment of closing the lap throws off
+let burst = null;
+function seedBurst(ok) {
+    const parts = [], n = ok ? 28 : 18;
+    for (let i = 0; i < n; i++) {
+        const p = pts[(Math.random() * pts.length) | 0];
+        const a = Math.atan2(p[1] - p[3], p[0] - p[2]);
+        const sp = ok ? 110 + Math.random() * 230 : 30 + Math.random() * 80;
+        parts.push({ x: p[0], y: p[1],
+                     vx: Math.cos(a) * sp, vy: Math.sin(a) * sp + (ok ? -40 : 40),
+                     r: 2.2 + Math.random() * 3.6 });
+    }
+    burst = { t0: now(), ok, parts, mean: verdict.mean };
+}
 const FADE_MS = 620;                // how long your line lasts, when it does not
 
 function draw() {
@@ -646,6 +747,31 @@ function draw() {
         ctx.closePath();
         ctx.stroke();
         ctx.restore();
+    }
+
+    if (burst) {
+        const t = (now() - burst.t0) / 1000, LIFE = .8;
+        if (t >= LIFE) burst = null;
+        else {
+            const e = t / LIFE;
+            if (burst.ok) {                       // a ring going out from the line
+                ctx.globalAlpha = (1 - e) * .75;
+                ctx.strokeStyle = '#3fa45b';
+                ctx.lineWidth = 6 * (1 - e) + 1;
+                ctx.beginPath();
+                ctx.arc(dx, dy, burst.mean + e * 110, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            ctx.globalAlpha = 1 - e;
+            ctx.fillStyle = burst.ok ? '#F4B32C' : '#e8524f';
+            for (const q of burst.parts) {
+                ctx.beginPath();
+                ctx.arc(q.x + q.vx * t, q.y + q.vy * t + (burst.ok ? 40 : 520) * t * t,
+                        q.r * (1 - e * .55), 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+        }
     }
 
     if (pts.length > 1) {
@@ -701,16 +827,17 @@ function liftView() {
 let lastTick = 0;
 function frame() {
     raf = requestAnimationFrame(frame);
-    if (!run.live) return;
-    if (has('clock') && drawing) {
+    if (run.live && has('clock') && drawing) {
         const left = run.limit - (now() - penT0) / 1000;
         clockFill.style.width = `${Math.max(0, left / run.limit) * 100}%`;
         clockEl.classList.toggle('low', left < run.limit * .3);
         if (left < run.limit * .3 && now() - lastTick > 240) { lastTick = now(); tick(); }
         if (left <= 0) return timeUp();
     }
-    // the dot moving, the swarm drifting and the ink fading all need repainting
-    if (has('drift') || has('swarm') || (has('fade') && drawing)) draw();
+    // the dot moving, the swarm drifting, the ink fading and the burst all need
+    // repainting - and the burst outlives the round it ended, so it is checked
+    // whether or not one is still going
+    if (burst || (run.live && (has('drift') || has('swarm') || (has('fade') && drawing)))) draw();
 }
 
 /* ============================================================
@@ -841,6 +968,18 @@ const SHAPES = `<svg viewBox="0 0 64 64"><g transform="translate(2.3 2.4) scale(
 </g></svg>`;
 document.querySelector('.cheer').innerHTML = SHAPES;
 
+const appEl = document.getElementById('app'), flashEl = document.getElementById('flash');
+// the screen flinches at a miss and swells at a pass
+function jolt(ok) {
+    appEl.classList.remove('shake', 'lift');
+    void appEl.offsetWidth;
+    appEl.classList.add(ok ? 'lift' : 'shake');
+    const col = ok ? '#fffdf8' : '#e8524f';
+    flashEl.animate([{ opacity: ok ? .42 : .66, background: col },
+                     { opacity: 0, background: col }],
+                    { duration: ok ? 280 : 360, easing: 'ease-out' });
+}
+
 const bestKey = 'pc-best';
 let best = 0;
 try { best = parseInt(localStorage.getItem(bestKey) || '0', 10) || 0; } catch (e) { best = 0; }
@@ -848,28 +987,46 @@ const fmt = n => Math.round(n).toLocaleString('en-GB');
 const pc = n => n.toFixed(1);
 document.getElementById('best-val').textContent = fmt(best);
 
+/* Two pools a band: what to say when it got you through, and what to say when
+   it did not. The shape is the joke either way - an egg is still an egg - but
+   an egg that cleared the bar has not done anything wrong. */
 const RATINGS = [
-    [99.2, 'm-great', ['Are you a compass?', 'That was not a hand', 'Do that again, slowly',
-                       'Nobody likes a show-off']],
-    [97,   'm-great', ['Suspiciously round', 'Almost too round', 'Frankly suspicious',
-                       'Were you traced?']],
-    [93,   'm-great', ['Very round indeed', 'Properly round', 'That is a circle',
-                       'Geometrically sound']],
-    [88,   'm-good',  ['Nice circle', 'A good round thing', 'No notes', 'Well rounded']],
-    [80,   'm-good',  ['Pretty good', 'Roundish', 'Not far off', 'A decent hoop']],
-    [68,   'm-meh',   ['Getting there', 'A circle, if you squint', 'Broadly circular',
-                       'Circle-adjacent', 'Round enough for jazz']],
-    [50,   'm-meh',   ['A bit wobbly', 'That is an oval', 'That is a potato',
-                       'A wheel that would not roll', 'Someone let go of the string',
-                       'That is a rugby ball']],
-    [0,    'm-poor',  ['That is an egg', 'That is a scone', 'That is a bean',
-                       'A very tired balloon', 'Did you draw that on a bus?',
-                       'That is a cloud', 'That is a crisp', 'Geometry would like a word',
-                       'A circle drawn from memory', 'That is a kidney']],
+    [99.2, 'm-great',
+     ['Are you a compass?', 'That was not a hand', 'Do that again, slowly',
+      'Nobody likes a show-off'],
+     ['Round, and still not enough', 'Cruel, that']],
+    [97, 'm-great',
+     ['Suspiciously round', 'Almost too round', 'Frankly suspicious', 'Were you traced?'],
+     ['Round, but the bar has moved', 'Beautiful. Not enough.']],
+    [93, 'm-great',
+     ['Very round indeed', 'Properly round', 'That is a circle', 'Geometrically sound'],
+     ['A fine circle, in a hard round', 'That would have walked it earlier']],
+    [88, 'm-good',
+     ['Nice circle', 'A good round thing', 'No notes', 'Well rounded'],
+     ['Nice, and still short', 'The bar has got greedy']],
+    [80, 'm-good',
+     ['Pretty good', 'Roundish and through', 'Not far off', 'A decent hoop'],
+     ['So close', 'Nearly. Not quite.', 'That one hurt']],
+    [68, 'm-meh',
+     ['That will do nicely', 'Solid', 'Good enough, and then some', 'Through with room'],
+     ['A circle, if you squint', 'Broadly circular', 'Circle-adjacent',
+      'Round enough for jazz']],
+    [50, 'm-meh',
+     ['Wonky, but through', 'It counts', 'Got away with that one', 'Round enough'],
+     ['A bit wobbly', 'That is an oval', 'That is a potato',
+      'A wheel that would not roll', 'Someone let go of the string',
+      'That is a rugby ball']],
+    [0, 'm-poor',
+     ['A passing egg', 'Not pretty. Through.', 'Scraped it', 'Ugly, but it counts',
+      'We will say no more about it', 'An egg, and a lucky one'],
+     ['That is an egg', 'That is a scone', 'That is a bean', 'A very tired balloon',
+      'Did you draw that on a bus?', 'That is a cloud', 'That is a crisp',
+      'Geometry would like a word', 'A circle drawn from memory', 'That is a kidney']],
 ];
 const pick = a => a[(Math.random() * a.length) | 0];
 
 function startRound(n) {
+    burst = null;
     run.round = n;
     run.live = true;
     run.twists = rollTwists(n);
@@ -882,7 +1039,9 @@ function startRound(n) {
     pts = []; verdict = null; drawing = false;
     view = { y: 0, k: 1 };
 
-    twistEl.innerHTML = run.twists.map(k => `<div class="twist">${TWISTS[k].name}</div>`).join('');
+    // the clock has a bar with its own icon, so it does not need telling twice
+    twistEl.innerHTML = run.twists.filter(k => k !== 'clock')
+        .map(k => `<div class="twist">${TWISTS[k].name}</div>`).join('');
     bannerEl.innerHTML = `<span class="r">Round ${n}</span>` +
         `<span class="need">${pc(passMark(n))}% to stay in</span>`;
     bannerEl.classList.remove('go');
@@ -906,7 +1065,7 @@ function settle(score) {
     }
     card.className = row[1] + (passed ? '' : ' failed') + (record ? ' record' : '');
     document.getElementById('score').innerHTML = pc(score) + '<span class="pc">%</span>';
-    document.getElementById('rating').textContent = pick(row[2]);
+    document.getElementById('rating').textContent = pick(passed ? row[2] : row[3]);
     document.getElementById('pass').innerHTML = passed
         ? `<span class="ok">Through</span> &middot; needed ${pc(need)}%`
         : `<span class="no">Needed ${pc(need)}%</span>`;
@@ -919,6 +1078,10 @@ function settle(score) {
     document.getElementById('best-val').textContent = fmt(Math.max(best, run.total));
     document.getElementById('again').textContent = passed ? `Round ${run.round + 1}` : 'Again!';
     if (!passed) run.live = false;
+    // the moment the lap closes, before the card has any say in it
+    jolt(passed);
+    sting(passed);
+    seedBurst(passed);
 
     setTimeout(() => {
         card.hidden = false;
@@ -926,7 +1089,7 @@ function settle(score) {
         if (record) { confetti(30); fanfare(); }
         else if (passed) YAYS.play();
         else BOOS.play();
-    }, 420);
+    }, 440);
 }
 
 document.getElementById('again').addEventListener('click', e => {
