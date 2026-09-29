@@ -460,7 +460,7 @@ body.waiting #hud { display: none; }
 </div>
 
 <script>
-const APP_VERSION = 'v71';
+const APP_VERSION = 'v72';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -471,39 +471,14 @@ let audioCtx = null, master = null, soundOn = true;
 const soundKey = 'pc-sound';
 try { soundOn = localStorage.getItem(soundKey) !== 'off'; } catch (e) { /* private mode */ }
 
-/* Five goes at the silent first stroke and I have been wrong three times, so
-   rather than guess a fourth: load the page with #audio on the end and this
-   prints what the audio is actually doing, on the device it is doing it on. */
-const DIAG = location.hash === '#audio';
-let diagEl = null;
-function diag(line) {
-    if (!DIAG) return;
-    if (!diagEl) {
-        diagEl = document.createElement('div');
-        diagEl.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99;max-height:45%;' +
-            'overflow:auto;background:rgba(36,31,46,.92);color:#9f9;font:11px/1.45 monospace;' +
-            'padding:6px 8px;white-space:pre-wrap;pointer-events:none';
-        document.body.appendChild(diagEl);
-    }
-    const t = audioCtx ? audioCtx.currentTime.toFixed(3) : '-.---';
-    diagEl.textContent += `[${t}] ${line}\n`;
-    diagEl.scrollTop = diagEl.scrollHeight;
-}
-
 function audioNow() {
     if (!audioCtx) {
-        if (!AC) { diag('NO AudioContext on this browser at all'); throw new Error('no audio'); }
         audioCtx = new AC();
-        diag('context built, state=' + audioCtx.state + ' rate=' + audioCtx.sampleRate);
         master = audioCtx.createGain();
         master.gain.value = .7;
         master.connect(audioCtx.destination);
     }
-    if (audioCtx.state === 'suspended') {
-        diag('suspended, asking it to resume');
-        audioCtx.resume().then(() => diag('resume granted, state=' + audioCtx.state))
-                         .catch(e => diag('resume REFUSED: ' + e.message));
-    }
+    if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
     return audioCtx.currentTime;
 }
 function tone(t0, { freq, to, dur = .18, type = 'triangle', vol = .2, at = 0 }) {
@@ -539,26 +514,20 @@ let clockGoing = false;
 function whenRunning(fn) {
     try {
         audioNow();
-        const go = () => {
-            if (!clockGoing) diag('first sound scheduled, state=' + audioCtx.state +
-                ' muted=' + !soundOn + ' master=' + (master ? master.gain.value : '?'));
-            clockGoing = true;
-            fn(audioCtx.currentTime + LEAD);
-        };
+        const go = () => { clockGoing = true; fn(audioCtx.currentTime + LEAD); };
         if (clockGoing || audioCtx.currentTime > 0) return go();
-        diag('clock at zero, waiting for it (state=' + audioCtx.state + ')');
         audioCtx.resume().catch(() => {});
         let tries = 0;
         const waitForTheClock = () => {
             if (audioCtx.currentTime > 0) return go();
             if (tries === 30) startSession();       // one more go at the session
-            if (++tries > 90) { diag('GAVE UP: clock never moved, state=' + audioCtx.state); return; }
+            if (++tries > 90) return;          // a second of nothing: no audio here
             requestAnimationFrame(waitForTheClock);
         };
         waitForTheClock();
     } catch (e) { /* no audio here, never mind */ }
 }
-const safely = fn => { if (!soundOn) { diag('sound is muted, skipping'); return; } whenRunning(fn); };
+const safely = fn => { if (!soundOn) return; whenRunning(fn); };
 let noiseBuf = null;
 function noise() {
     if (!noiseBuf) {
@@ -768,18 +737,14 @@ function startSession() {
             wake.setAttribute('playsinline', '');
         }
         const r = wake.play();
-        if (r && r.then) r.then(() => {
-            diag('silent element playing - session open');
-            // The context was built while there was no session, and a context
-            // that starts life with nowhere to go can stay stuck for good. Now
-            // there is somewhere to go, so if it is still stuck, throw it away
-            // and build another - this time into an open session.
-            setTimeout(() => {
-                diag('element at ' + wake.currentTime.toFixed(2) + 's, paused=' + wake.paused);
-                if (audioCtx && audioCtx.state !== 'running' && audioCtx.currentTime === 0) rebuild();
-            }, 260);
-        }).catch(e => diag('silent element REFUSED: ' + e.name));
-    } catch (e) { diag('silent element threw: ' + e.message); }
+        // The context may have been built while there was no session, and one
+        // that starts life with nowhere to go can stay stuck for good. Now
+        // there is somewhere to go, so if it is still stuck, throw it away and
+        // build another - this time into an open session.
+        if (r && r.then) r.then(() => setTimeout(() => {
+            if (audioCtx && audioCtx.state !== 'running' && audioCtx.currentTime === 0) rebuild();
+        }, 260)).catch(() => {});
+    } catch (e) { /* no audio here, never mind */ }
 }
 
 /* One rebuild, once, into a session that is now open. */
@@ -788,13 +753,10 @@ function rebuild() {
     if (rebuilt) return;
     rebuilt = true;
     try {
-        diag('context still stuck - building a fresh one');
         try { audioCtx.close(); } catch (e) { /* never mind */ }
         audioCtx = null; master = null; keepAwake = null; unlocked = false; clockGoing = false;
         unlockAudio();
-        setTimeout(() => diag('after the rebuild: state=' + audioCtx.state +
-            (audioCtx.currentTime > 0 ? ' clock RUNNING' : ' clock still at zero')), 300);
-    } catch (e) { diag('rebuild threw: ' + e.message); }
+    } catch (e) { /* no audio here, never mind */ }
 }
 
 let unlocked = false, keepAwake = null;
@@ -816,17 +778,10 @@ function unlockAudio() {
         o.connect(g); g.connect(audioCtx.destination);
         o.start();
         keepAwake = o;
-        diag('keep-awake note started, state=' + audioCtx.state);
-        setTimeout(() => diag('a quarter second on: state=' + audioCtx.state +
-            (audioCtx.currentTime > 0 ? ' clock IS running' : ' clock STILL AT ZERO')), 250);
-    } catch (e) { diag('unlock threw: ' + e.message); }
+    } catch (e) { /* no audio here, never mind */ }
 }
 for (const ev of ['touchstart', 'touchend', 'pointerdown', 'mousedown', 'keydown'])
-    addEventListener(ev, e => {
-        if (!unlocked) diag('first gesture: ' + e.type + ', browser calls it active=' +
-            (navigator.userActivation ? navigator.userActivation.isActive : 'unknown'));
-        unlockAudio();
-    }, { capture: true, passive: true });
+    addEventListener(ev, unlockAudio, { capture: true, passive: true });
 // coming back from the lock screen or another app leaves it suspended again
 addEventListener('visibilitychange', () => {
     if (!document.hidden && audioCtx && audioCtx.state === 'suspended')
