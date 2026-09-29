@@ -419,7 +419,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v64';
+const APP_VERSION = 'v65';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -510,6 +510,7 @@ function whenRunning(fn) {
         let tries = 0;
         const waitForTheClock = () => {
             if (audioCtx.currentTime > 0) return go();
+            if (tries === 30) startSession();       // one more go at the session
             if (++tries > 90) { diag('GAVE UP: clock never moved, state=' + audioCtx.state); return; }
             requestAnimationFrame(waitForTheClock);
         };
@@ -699,9 +700,37 @@ applySound();
    So take the very first touch anywhere on the page, in the capture phase so
    this runs before the handler that starts a stroke, build the context there
    and push one silent sample through it, which is what actually unlocks it. */
+/* The readout from the phone settled it: the context is built inside the
+   touch and still comes up suspended, and resume() is neither granted nor
+   refused - the promise simply never settles. Safari is not declining the
+   call, it is declining to open an audio session for the page at all, and
+   nothing done with WebAudio alone will change its mind. Chrome on a phone is
+   the same engine underneath, so it behaves the same way.
+
+   What does open one is an ordinary media element. Playing a tenth of a second
+   of silence on a loop, at zero volume, is enough - and once there is a
+   session the context resumes like anywhere else. So the first touch starts
+   that, and the WebAudio unlock follows behind it. */
+const SILENCE = 'data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';
+let wake = null;
+function startSession() {
+    try {
+        if (!wake) {
+            wake = new Audio(SILENCE);
+            wake.loop = true;
+            wake.volume = 0;
+            wake.setAttribute('playsinline', '');
+        }
+        const r = wake.play();
+        if (r && r.then) r.then(() => diag('silent element playing - session open'))
+                          .catch(e => diag('silent element REFUSED: ' + e.name));
+    } catch (e) { diag('silent element threw: ' + e.message); }
+}
+
 let unlocked = false, keepAwake = null;
 function unlockAudio() {
     try {
+        startSession();               // open an audio session before anything else
         audioNow();                   // builds it, and resumes it if suspended
         if (unlocked) return;
         unlocked = true;

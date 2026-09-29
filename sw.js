@@ -1,5 +1,5 @@
 /* Cache the game so it keeps working with no signal. Bump CACHE on release. */
-const CACHE = 'perfect-circle-v64';
+const CACHE = 'perfect-circle-v65';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png',
                 './icon-512.png', './icon-512-maskable.png'];
 
