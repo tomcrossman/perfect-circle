@@ -57,4 +57,11 @@ comes from the score and the expression comes from the pass mark.
 Each band has its own pool of lines, and the bad ones have the most, because
 they are the funny ones. A line stays put whether you got through or not.
 
-While the pen is down you hear an "oooooooh" that runs until you let go.
+While the pen is down you hear an "oooooooh" that runs until you let go, and
+getting through a round is met with one of two cheers, taken at random.
+
+All three are MP4 containers with a single AAC track. They are named `.mp4`
+rather than `.m4a` because that is what they are, and because the preview host
+will not serve `.m4a`. iOS will only play an element a gesture has touched, and
+the cheers fire on a timer after the pen has gone, so they are woken silently
+on the first pen-down while a finger is still on the glass.

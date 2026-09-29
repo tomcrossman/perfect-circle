@@ -304,7 +304,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v10';
+const APP_VERSION = 'v12';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -360,6 +360,38 @@ const tick = () => safely(t => tone(t, { freq: 1200, dur: .04, type: 'square', v
 const OOH = new Audio('oooooooh.mp4');
 OOH.preload = 'auto';
 OOH.volume = .9;
+// and the cheers for getting through a round, taken in turns so the same one
+// does not come back every time
+const YAYS = ['yay-1.mp4', 'yay-2.mp4'].map(src => {
+    const a = new Audio(src);
+    a.preload = 'auto';
+    a.volume = .95;
+    return a;
+});
+// iOS only lets an element play once a gesture has touched that element, and
+// the cheer fires on a timer well after the pen has gone. So they all get woken
+// silently on the way in, while a finger is still on the glass.
+let yaysWoken = false;
+function wakeYays() {
+    if (yaysWoken) return;
+    yaysWoken = true;
+    YAYS.forEach(a => {
+        const done = () => { try { a.pause(); a.currentTime = 0; } catch (e) { /* never mind */ }
+                             a.volume = .95; };
+        try {
+            a.volume = 0;
+            const q = a.play();
+            if (q && q.then) q.then(done).catch(done); else done();
+        } catch (e) { a.volume = .95; }
+    });
+}
+function yay() {
+    if (!soundOn) return;
+    const a = YAYS[(Math.random() * YAYS.length) | 0];
+    try { a.currentTime = 0; const q = a.play(); if (q && q.catch) q.catch(() => {}); }
+    catch (e) { /* no audio here, never mind */ }
+}
+const hushYays = () => YAYS.forEach(a => { try { a.pause(); } catch (e) { /* never mind */ } });
 function oohStart() {
     if (!soundOn) return;
     try { OOH.currentTime = 0; const q = OOH.play(); if (q && q.catch) q.catch(() => {}); }
@@ -376,7 +408,7 @@ muteBtn.addEventListener('click', e => {
     soundOn = !soundOn;
     try { localStorage.setItem(soundKey, soundOn ? 'on' : 'off'); } catch (e) { /* private mode */ }
     applySound();
-    if (soundOn) chime(70); else oohStop();
+    if (soundOn) chime(70); else { oohStop(); hushYays(); }
 });
 applySound();
 
@@ -695,6 +727,7 @@ function start(x, y) {
     bannerEl.classList.remove('go');
     liveEl.classList.add('on');
     liveEl.textContent = '';
+    wakeYays();
     oohStart();
     draw();
 }
@@ -878,7 +911,7 @@ function settle(score) {
         card.hidden = false;
         liftView();
         if (record) { confetti(30); fanfare(); }
-        else if (passed) chime(score);
+        else if (passed) yay();
         else knell();
     }, 420);
 }
