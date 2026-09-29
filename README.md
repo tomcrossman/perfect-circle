@@ -57,8 +57,10 @@ comes from the score and the expression comes from the pass mark.
 Each band has its own pool of lines, and the bad ones have the most, because
 they are the funny ones. A line stays put whether you got through or not.
 
-While the pen is down you hear an "oooooooh" that runs until you let go, and
-getting through a round is met with one of two cheers, taken at random.
+While the pen is down you hear an "oooooooh" that runs until you let go.
+Getting through a round is met with one of five cheers; missing the mark with
+one of eight groans. Each is picked at random from its set, so the same take
+does not come back every round.
 
 All three are MP4 containers with a single AAC track. They are named `.mp4`
 rather than `.m4a` because that is what they are, and because the preview host
