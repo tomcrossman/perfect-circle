@@ -374,12 +374,12 @@ body {
    so below 400px everything in it comes in a size. */
 @media (max-width: 400px) {
     #hud { padding: 10px 8px; gap: 4px; }
-    .plate { font-size: 19px; padding: 3px 8px 1px; }
+    .plate { font-size: 18px; padding: 3px 7px 1px; }
     .plate .ico { width: 14px; height: 14px; }
     .plate .of { margin-left: 5px; padding-left: 6px; }
-    #shapes { padding: 2px; gap: 2px; }
-    #shapes button { width: 26px; height: 24px; }
-    #shapes button svg { width: 15px; height: 15px; }
+    #shapes { padding: 2px; gap: 1px; }
+    #shapes button { width: 22px; height: 23px; border-radius: 7px; }
+    #shapes button svg { width: 14px; height: 14px; }
     #mute { padding: 5px 6px 2px; }
     #mute svg { width: 19px; height: 19px; }
 }
@@ -428,6 +428,11 @@ body {
             <button data-shape="square" aria-label="Square"><svg viewBox="0 0 20 20"><rect
                 x="3.4" y="3.4" width="13.2" height="13.2" rx="1.6" fill="none" stroke="currentColor"
                 stroke-width="2.7"/></svg></button>
+            <button data-shape="random" aria-label="Shuffle"><svg viewBox="0 0 20 20"><rect
+                x="2.8" y="2.8" width="14.4" height="14.4" rx="3.4" fill="none" stroke="currentColor"
+                stroke-width="2.4"/><circle cx="6.6" cy="6.6" r="1.5" fill="currentColor"/><circle
+                cx="10" cy="10" r="1.5" fill="currentColor"/><circle cx="13.4" cy="13.4" r="1.5"
+                fill="currentColor"/></svg></button>
         </div>
         <button id="mute" aria-label="Sound on or off">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#241F2E"
@@ -464,7 +469,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v42';
+const APP_VERSION = 'v43';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -748,7 +753,7 @@ const twistCount = r => Math.min(3, 1 + Math.floor((r - 4) / 4));
 const timeFor = r => 1.6 + 3.4 * Math.pow(.92, r - 1);
 
 const run = { round: 0, live: false, tally: false, twists: [], limit: 0, drift: 0, swarmN: 0,
-              shape: 'circle', way: 0 };
+              mode: 'circle', form: 'circle', way: 0 };
 const has = k => run.twists.includes(k);
 // the clock is always on, so nothing has to ask
 
@@ -823,25 +828,50 @@ HAND.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`<svg xmlns=
    profile is flat 1, so everything below reduces exactly to what it was and
    a circle scores identically to before. */
 const SHAPES = {
-    circle:   { n: 0, name: 'circle',
-                first: 'Draw a circle around the dot', again: 'Round the dot again' },
-    triangle: { n: 3, name: 'triangle',
-                first: 'Draw a triangle around the dot', again: 'Another triangle round the dot' },
-    square:   { n: 4, name: 'square',
-                first: 'Draw a square around the dot', again: 'Another square round the dot' },
+    circle:   { n: 0, name: 'circle',   lines: 'circle' },
+    triangle: { n: 3, name: 'triangle', lines: 'triangle' },
+    square:   { n: 4, name: 'square',   lines: 'square' },
+    // the three you are never offered, and only ever meet on a random round
+    pentagon: { n: 5, name: 'pentagon', lines: 'odd' },
+    hexagon:  { n: 6, name: 'hexagon',  lines: 'odd' },
+    star:     { n: 5, inner: .46, name: 'star', lines: 'odd' },
 };
-const SHAPE_KEYS = ['circle', 'triangle', 'square'];
-function profile(a, n, phi) {
-    if (!n) return 1;
-    const sec = 2 * Math.PI / n, half = Math.PI / n;
-    let d = (a - phi + half) % sec;
+// the picker offers three shapes and the shuffle; the rest are its business
+const MODES = ['circle', 'triangle', 'square', 'random'];
+// weighted so the familiar three carry it and a star is a genuine event
+const RANDOM_POOL = ['circle', 'circle', 'circle', 'triangle', 'triangle', 'triangle',
+                     'square', 'square', 'square', 'pentagon', 'pentagon',
+                     'hexagon', 'hexagon', 'star'];
+function profile(a, key, phi) {
+    const f = SHAPES[key];
+    if (!f || !f.n) return 1;
+    const n = f.n, sec = 2 * Math.PI / n, half = Math.PI / n;
+    if (!f.inner) {                       // a regular polygon, measured from an edge
+        let d = (a - phi + half) % sec;
+        if (d < 0) d += sec;
+        return Math.cos(half) / Math.cos(d - half);
+    }
+    // A star: every sector is one straight run out to a point and back to a
+    // notch, so the radius is wherever the ray crosses that line - and the
+    // second half of the sector is the first half mirrored. phi is a point.
+    let d = (a - phi) % sec;
     if (d < 0) d += sec;
-    return Math.cos(half) / Math.cos(d - half);
+    if (d > half) d = sec - d;
+    const p = f.inner;
+    return p * Math.sin(half) / (Math.sin(d) + p * Math.sin(half - d));
+}
+// the way up a shape looks right when it is being demonstrated
+function uprightTurn(key) {
+    const f = SHAPES[key];
+    if (!f.n) return 0;
+    if (f.inner) return -Math.PI / 2;                       // a point at the top
+    return -Math.PI / 2 + (f.n % 2 ? Math.PI / f.n : 0);    // odd sides point, even sides sit
 }
 /* Which way up they drew it is their business, so the turn is fitted rather
    than demanded: sweep one sector coarsely, then close in around the best.
    A sector is all that is needed - the profile repeats every one of them. */
-function fitTurn(ang, rad, n) {
+function fitTurn(ang, rad, key) {
+    const n = SHAPES[key] ? SHAPES[key].n : 0;
     if (!n) {                                   // a circle has nothing to turn
         let t = 0; for (const r of rad) t += r;
         return { phi: 0, R: t / rad.length };
@@ -851,13 +881,13 @@ function fitTurn(ang, rad, n) {
     const tryPhi = phi => {
         let su = 0, sru = 0;
         for (let i = 0; i < rad.length; i++) {
-            const u = profile(ang[i], n, phi);
+            const u = profile(ang[i], key, phi);
             su += u * u; sru += rad[i] * u;
         }
         const R = su ? sru / su : 0;
         let v = 0;
         for (let i = 0; i < rad.length; i++) {
-            const d = rad[i] - R * profile(ang[i], n, phi);
+            const d = rad[i] - R * profile(ang[i], key, phi);
             v += d * d;
         }
         if (!best || v < best.v) best = { phi, R, v };
@@ -915,9 +945,9 @@ function judge(points) {
     const way = Math.sign(sweep);
     // the fit is worked out as soon as there is enough of a shape to fit, so
     // the line can be coloured against it while it is still being drawn
-    const sides = SHAPES[run.shape].n;
-    const f = n >= 12 ? fitTurn(ang, rad, sides) : null;
-    const part = f ? { lap, mean, way, R: f.R, phi: f.phi, sides } : { lap, way };
+    const form = run.form;
+    const f = n >= 12 ? fitTurn(ang, rad, form) : null;
+    const part = f ? { lap, mean, way, R: f.R, phi: f.phi, form } : { lap, way };
     if (filled < BINS - GAP_ALLOW)
         return { ...part, ok: false, why: Math.abs(sweep) < Math.PI * 1.6
             ? `Not all the way round - one full lap of the dot.`
@@ -928,7 +958,7 @@ function judge(points) {
     if (mean < MIN_MEAN) return { ...part, ok: false, why: 'Too small to judge - give it some room.' };
 
     let v = 0;
-    for (let i = 0; i < n; i++) { const d = rad[i] - f.R * profile(ang[i], sides, f.phi); v += d * d; }
+    for (let i = 0; i < n; i++) { const d = rad[i] - f.R * profile(ang[i], form, f.phi); v += d * d; }
     const sd = Math.sqrt(v / n);
     // A finger on glass is nothing like as steady as it feels. A respectable
     // freehand circle wanders about 15% off its own average, so a curve tuned
@@ -988,22 +1018,26 @@ function drawWay(cx, cy) {
 const DEMO = { sweep: 2.2, hold: .5, fade: .45, gap: .7 };
 const DEMO_CYCLE = DEMO.sweep + DEMO.hold + DEMO.fade + DEMO.gap;
 const IDLE_WAIT = 4.5;              // seconds of nothing before it offers again
+const BANNER_MS = 1250;             // as long as the round announcement is on screen
 let taught = false, demoT0 = now(), idleT0 = now();
 // Before the first stroke it just runs, on any round it comes back if they
 // have sat there long enough - the same animation doing both jobs, since
 // stalling on round nine is the same question as stalling on round one.
 const demoOn = () => run.live && !drawing && !pts.length && card.hidden
-                     && (!taught ? run.round === 1 : (now() - idleT0) / 1000 > IDLE_WAIT);
+                     && (!taught || run.mode === 'random'
+                         || (now() - idleT0) / 1000 > IDLE_WAIT);
 function drawDemo(ms, cx, cy) {
-    const from = taught ? idleT0 + IDLE_WAIT * 1000 : demoT0;
+    // on a shuffle round it is not a reminder, it is the only way to know what
+    // was asked for, so it runs from the off - once the banner has cleared
+    const from = (!taught || run.mode === 'random') ? demoT0 : idleT0 + IDLE_WAIT * 1000;
+    if (ms < from) return;
     const t = ((ms - from) / 1000) % DEMO_CYCLE;
     if (t > DEMO.sweep + DEMO.hold + DEMO.fade) return;
     const e = Math.min(1, t / DEMO.sweep);
     const over = t - DEMO.sweep - DEMO.hold;
     const fade = over > 0 ? Math.max(0, 1 - over / DEMO.fade) : 1;
-    const n = SHAPES[run.shape].n;
-    const phi = -Math.PI / 2 + (n % 2 ? Math.PI / n : 0);
-    const R = Math.min(W, H) * .27, STEPS = 160;
+    const phi = uprightTurn(run.form);
+    const R = Math.min(W, H) * .27, STEPS = 260;
     let hx = cx, hy = cy - R;
     ctx.save();
     ctx.globalAlpha = .28 * fade;
@@ -1012,7 +1046,7 @@ function drawDemo(ms, cx, cy) {
     ctx.beginPath();
     for (let i = 0; i <= STEPS * e; i++) {
         const a = -Math.PI / 2 + (i / STEPS) * Math.PI * 2;
-        const rr = R * profile(a, n, phi);
+        const rr = R * profile(a, run.form, phi);
         hx = cx + Math.cos(a) * rr; hy = cy + Math.sin(a) * rr;
         i ? ctx.lineTo(hx, hy) : ctx.moveTo(hx, hy);
     }
@@ -1087,7 +1121,7 @@ function draw() {
         ctx.beginPath();
         pts.forEach((p, i) => {
             const a = Math.atan2(p[1] - p[3], p[0] - p[2]);
-            const r = verdict.R * profile(a, verdict.sides, verdict.phi);
+            const r = verdict.R * profile(a, verdict.form, verdict.phi);
             const x = p[2] + Math.cos(a) * r, y = p[3] + Math.sin(a) * r;
             i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
         });
@@ -1139,7 +1173,7 @@ function draw() {
             }
             const r = Math.hypot(b[0] - b[2], b[1] - b[3]);
             const want = fit && fit.R
-                ? fit.R * profile(Math.atan2(b[1] - b[3], b[0] - b[2]), fit.sides, fit.phi) : mean;
+                ? fit.R * profile(Math.atan2(b[1] - b[3], b[0] - b[2]), fit.form, fit.phi) : mean;
             ctx.globalAlpha = alpha;
             ctx.strokeStyle = mean > 0 ? shade(Math.abs(r - want) / mean) : '#3fa45b';
             ctx.beginPath();
@@ -1367,9 +1401,9 @@ function jolt(ok, tint) {
 // A best per shape, because a square is not a circle and one number across
 // both would mean nothing. The old single score becomes the circle's.
 const bestKey = k => 'pc-rounds-' + k;
-const bests = { circle: 0, triangle: 0, square: 0 };
+const bests = { circle: 0, triangle: 0, square: 0, random: 0 };
 try {
-    for (const k of SHAPE_KEYS) bests[k] = parseInt(localStorage.getItem(bestKey(k)) || '0', 10) || 0;
+    for (const k of MODES) bests[k] = parseInt(localStorage.getItem(bestKey(k)) || '0', 10) || 0;
     const old = parseInt(localStorage.getItem('pc-rounds') || '0', 10) || 0;
     if (old && !bests.circle) { bests.circle = old; localStorage.setItem(bestKey('circle'), String(old)); }
 } catch (e) { /* private mode */ }
@@ -1385,6 +1419,40 @@ document.getElementById('best-val').textContent = fmt(best);
    to say when it did not. The shape is the joke either way, so the joke has
    to change with it - an egg is no insult to a square. */
 const RATINGS = {
+    odd: [
+    [99.2, 'm-great',
+     ['Are you a protractor?', 'That was not a hand', 'Do that again, slowly',
+      'Every corner, exactly where it should be'],
+     ['Faultless, and still not enough', 'Cruel, that']],
+    [97, 'm-great',
+     ['Suspiciously exact', 'Almost too neat', 'Frankly suspicious', 'Were you traced?'],
+     ['Exact, but the bar has moved', 'Beautiful. Not enough.']],
+    [93, 'm-great',
+     ['That is the shape', 'Every side accounted for', 'Properly done',
+      'Geometrically sound'],
+     ['A fine one, in a hard round', 'That would have walked it earlier']],
+    [88, 'm-good',
+     ['Nicely cornered', 'All the sides present', 'No notes', 'That is the one'],
+     ['Nice, and still short', 'The bar has got greedy']],
+    [80, 'm-good',
+     ['Pretty good', 'Through, and neatly', 'Not far off', 'A decent effort'],
+     ['So close', 'Nearly. Not quite.', 'That one hurt']],
+    [68, 'm-meh',
+     ['That will do nicely', 'Solid', 'Good enough, and then some', 'Through with room'],
+     ['The right shape, if you squint', 'Broadly correct', 'In the right family',
+      'Close enough for jazz']],
+    [50, 'm-meh',
+     ['Wonky, but through', 'It counts', 'Got away with that one', 'Near enough'],
+     ['A bit wobbly', 'You lost count of the sides', 'Two corners went missing',
+      'That started well', 'An honest attempt', 'Somewhere in there is the right shape']],
+    [0, 'm-poor',
+     ['A passing blob', 'Not pretty. Through.', 'Scraped it', 'Ugly, but it counts',
+      'We will say no more about it', 'A blob, and a lucky one'],
+     ['That is a blob', 'That is a puddle', 'Ambitious', 'A shape, certainly',
+      'Drawn from memory, and a poor one', 'That is a splat',
+      'Geometry would like a word', 'Nobody will know what that was',
+      'That is a sea creature', 'Corners are not optional']],
+],
     circle: [
     [99.2, 'm-great',
      ['Are you a compass?', 'That was not a hand', 'Do that again, slowly',
@@ -1501,6 +1569,9 @@ function startRound(n) {
     run.live = true;
     run.twists = rollTwists(n);
     run.limit = timeFor(n);
+    // a shuffle round deals its own shape, and may deal one you are never
+    // offered in the picker - which is the point of the mode
+    run.form = run.mode === 'random' ? pick(RANDOM_POOL) : run.mode;
     run.way = has('way') ? (natural ? -natural : -1) : 0;
     run.drift = Math.min(44, 13 + (n - TWISTS.drift.from) * 2.8);
     run.swarmN = Math.min(26, 8 + (n - TWISTS.swarm.from) * 1.6) | 0;
@@ -1508,19 +1579,21 @@ function startRound(n) {
     if (has('swarm')) seedSwarm(run.swarmN);
     armClock();
     pts = []; verdict = null; drawing = false;
-    idleT0 = now();
+    // the round announcement owns the middle of the screen while it is up, so
+    // the demonstration waits for it rather than drawing underneath it
+    idleT0 = now(); demoT0 = now() + BANNER_MS;
     view = { y: 0, k: 1 };
 
     bannerEl.innerHTML = `<span class="r">Round ${n}</span>` +
-        `<span class="need">${run.way ? wayName(run.way) + ' ' : ''}${SHAPES[run.shape].name}` +
+        `<span class="need">${run.way ? wayName(run.way) + ' ' : ''}${SHAPES[run.form].name}` +
         ` &middot; ${pc(passMark(n))}% in ${run.limit.toFixed(1)}s</span>`;
     bannerEl.classList.remove('go');
     void bannerEl.offsetWidth;
     bannerEl.classList.add('go');
-    const what = SHAPES[run.shape];
+    const what = SHAPES[run.form].name;
     promptEl.textContent = run.way
-        ? `${wayName(run.way)[0].toUpperCase()}${wayName(run.way).slice(1)} this time`
-        : n === 1 ? what.first : what.again;
+        ? `${wayName(run.way)[0].toUpperCase()}${wayName(run.way).slice(1)} ${what}`
+        : n === 1 ? `Draw a ${what} around the dot` : `Another ${what} round the dot`;
     promptEl.classList.remove('gone');
     draw();
 }
@@ -1535,12 +1608,12 @@ function showRound(n) {
 function settle(score) {
     const need = passMark(run.round);
     const passed = score >= need;
-    const row = RATINGS[run.shape].find(r => score >= r[0]);
+    const row = RATINGS[SHAPES[run.form].lines].find(r => score >= r[0]);
     const done = run.round - (passed ? 0 : 1);          // rounds actually completed
     const record = !passed && done > best;
     if (record) {
-        best = bests[run.shape] = done;
-        try { localStorage.setItem(bestKey(run.shape), String(best)); } catch (e) { /* private mode */ }
+        best = bests[run.mode] = done;
+        try { localStorage.setItem(bestKey(run.mode), String(best)); } catch (e) { /* private mode */ }
     }
     card.className = row[1] + (passed ? '' : ' failed') + (record ? ' record' : '');
     document.getElementById('score').innerHTML = pc(score) + '<span class="pc">%</span>';
@@ -1553,7 +1626,7 @@ function settle(score) {
         ? `<span class="ok">Through</span> &middot; needed ${pc(need)}%`
         : `<span class="no">Needed ${pc(need)}%</span>`;
     document.getElementById('note').textContent = record ? pick(row[3])
-        : `The dashed line is the ${SHAPES[run.shape].name} you were aiming for.`;
+        : `The dashed line is the ${SHAPES[run.form].name} you were aiming for.`;
     document.getElementById('sum-rounds').textContent = done;
     document.getElementById('card-best').textContent = fmt(best);
     showRound(run.round);
@@ -1611,7 +1684,7 @@ function confetti(n) {
 
 const shapeBox = document.getElementById('shapes');
 function setShape(k, restart) {
-    run.shape = k;
+    run.mode = k;
     best = bests[k];
     for (const b of shapeBox.children) b.classList.toggle('on', b.dataset.shape === k);
     try { localStorage.setItem('pc-shape', k); } catch (e) { /* private mode */ }
@@ -1623,13 +1696,13 @@ function setShape(k, restart) {
 }
 shapeBox.addEventListener('click', e => {
     const b = e.target.closest('button');
-    if (!b || b.dataset.shape === run.shape) return;
+    if (!b || b.dataset.shape === run.mode) return;
     e.stopPropagation();
     setShape(b.dataset.shape, true);
 });
 try {
     const k = localStorage.getItem('pc-shape');
-    if (SHAPE_KEYS.includes(k)) setShape(k, false);
+    if (MODES.includes(k)) setShape(k, false);
 } catch (e) { /* private mode */ }
 
 fit();
