@@ -289,6 +289,13 @@ body {
 #pass .no { color: var(--danger); }
 #card.failed #score { color: var(--danger); }
 #card.failed .inner { border-color: var(--danger); }
+/* a best outranks the miss it arrived on: gold, not red, and pleased about it */
+#card.record.failed .inner { border-color: var(--gold); }
+#card.record.failed #score { color: var(--gold); }
+#card.record #ribbon { background: var(--gold); color: var(--ink); }
+#card.record .fh { display: block; }
+#card.record .fx { display: none; }
+#card.record.failed #note { display: block; opacity: .5; margin-top: 4px; }
 #summary {
     display: none; margin: 11px 0 0;
     font-family: var(--font-display); font-size: 25px; letter-spacing: .02em;
@@ -457,7 +464,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v41';
+const APP_VERSION = 'v42';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -980,11 +987,16 @@ function drawWay(cx, cy) {
    paragraph of instructions would and gets out of the way by itself. */
 const DEMO = { sweep: 2.2, hold: .5, fade: .45, gap: .7 };
 const DEMO_CYCLE = DEMO.sweep + DEMO.hold + DEMO.fade + DEMO.gap;
-let taught = false, demoT0 = now();
-const demoOn = () => !taught && run.live && !drawing && !pts.length
-                     && card.hidden && run.round === 1;
+const IDLE_WAIT = 4.5;              // seconds of nothing before it offers again
+let taught = false, demoT0 = now(), idleT0 = now();
+// Before the first stroke it just runs, on any round it comes back if they
+// have sat there long enough - the same animation doing both jobs, since
+// stalling on round nine is the same question as stalling on round one.
+const demoOn = () => run.live && !drawing && !pts.length && card.hidden
+                     && (!taught ? run.round === 1 : (now() - idleT0) / 1000 > IDLE_WAIT);
 function drawDemo(ms, cx, cy) {
-    const t = ((ms - demoT0) / 1000) % DEMO_CYCLE;
+    const from = taught ? idleT0 + IDLE_WAIT * 1000 : demoT0;
+    const t = ((ms - from) / 1000) % DEMO_CYCLE;
     if (t > DEMO.sweep + DEMO.hold + DEMO.fade) return;
     const e = Math.min(1, t / DEMO.sweep);
     const over = t - DEMO.sweep - DEMO.hold;
@@ -1263,6 +1275,7 @@ function timeUp() {
     draw();
     buzz();
     armClock();
+    idleT0 = now();
     promptEl.textContent = 'Out of time - faster next go.';
     promptEl.classList.remove('gone');
 }
@@ -1339,11 +1352,11 @@ function nextRound() {
     startRound(run.round + 1);
 }
 // the screen flinches at a miss and swells at a pass
-function jolt(ok) {
+function jolt(ok, tint) {
     appEl.classList.remove('shake', 'lift');
     void appEl.offsetWidth;
     appEl.classList.add(ok ? 'lift' : 'shake');
-    const col = ok ? '#fffdf8' : '#e8524f';
+    const col = tint || (ok ? '#fffdf8' : '#e8524f');
     flashEl.animate([{ opacity: ok ? .42 : .66, background: col },
                      { opacity: 0, background: col }],
                     { duration: ok ? 280 : 360, easing: 'ease-out' });
@@ -1473,6 +1486,10 @@ const RATINGS = {
 ],
 };
 const pick = a => a[(Math.random() * a.length) | 0];
+// what the card leads with when the run was your furthest yet
+const RECORD_LINES = ['Your best yet', 'A new record', 'Further than ever before',
+    'That is the one to beat', 'Nobody has got further. Including you.',
+    'A personal best', 'New high-water mark'];
 
 function startRound(n) {
     burst = null;
@@ -1491,6 +1508,7 @@ function startRound(n) {
     if (has('swarm')) seedSwarm(run.swarmN);
     armClock();
     pts = []; verdict = null; drawing = false;
+    idleT0 = now();
     view = { y: 0, k: 1 };
 
     bannerEl.innerHTML = `<span class="r">Round ${n}</span>` +
@@ -1526,21 +1544,25 @@ function settle(score) {
     }
     card.className = row[1] + (passed ? '' : ' failed') + (record ? ' record' : '');
     document.getElementById('score').innerHTML = pc(score) + '<span class="pc">%</span>';
-    document.getElementById('rating').textContent = pick(row[3]);
+    // Every run ends on a miss, so a best was arriving in full mourning: red
+    // border, red number, dead eyes and an insult. The miss is still what
+    // happened, but the headline is the run - so on a best the celebration
+    // leads and the joke about the shape drops to the small print.
+    document.getElementById('rating').textContent = record ? pick(RECORD_LINES) : pick(row[3]);
     document.getElementById('pass').innerHTML = passed
         ? `<span class="ok">Through</span> &middot; needed ${pc(need)}%`
         : `<span class="no">Needed ${pc(need)}%</span>`;
-    document.getElementById('note').textContent =
-        `The dashed line is the ${SHAPES[run.shape].name} you were aiming for.`;
+    document.getElementById('note').textContent = record ? pick(row[3])
+        : `The dashed line is the ${SHAPES[run.shape].name} you were aiming for.`;
     document.getElementById('sum-rounds').textContent = done;
     document.getElementById('card-best').textContent = fmt(best);
     showRound(run.round);
     document.getElementById('again').textContent = passed ? `Round ${run.round + 1}` : 'Again!';
     if (!passed) run.live = false;
     // the moment the lap closes, before anything else has a say in it
-    jolt(passed);
-    sting(passed);
-    seedBurst(passed);
+    jolt(passed || record, record && !passed ? '#f4b32c' : null);
+    sting(passed || record);
+    seedBurst(passed || record);
 
     if (passed) {
         // a beat to read it, then the next one starts on its own
