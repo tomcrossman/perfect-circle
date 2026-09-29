@@ -419,7 +419,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v63';
+const APP_VERSION = 'v64';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -430,14 +430,39 @@ let audioCtx = null, master = null, soundOn = true;
 const soundKey = 'pc-sound';
 try { soundOn = localStorage.getItem(soundKey) !== 'off'; } catch (e) { /* private mode */ }
 
+/* Five goes at the silent first stroke and I have been wrong three times, so
+   rather than guess a fourth: load the page with #audio on the end and this
+   prints what the audio is actually doing, on the device it is doing it on. */
+const DIAG = location.hash === '#audio';
+let diagEl = null;
+function diag(line) {
+    if (!DIAG) return;
+    if (!diagEl) {
+        diagEl = document.createElement('div');
+        diagEl.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99;max-height:45%;' +
+            'overflow:auto;background:rgba(36,31,46,.92);color:#9f9;font:11px/1.45 monospace;' +
+            'padding:6px 8px;white-space:pre-wrap;pointer-events:none';
+        document.body.appendChild(diagEl);
+    }
+    const t = audioCtx ? audioCtx.currentTime.toFixed(3) : '-.---';
+    diagEl.textContent += `[${t}] ${line}\n`;
+    diagEl.scrollTop = diagEl.scrollHeight;
+}
+
 function audioNow() {
     if (!audioCtx) {
+        if (!AC) { diag('NO AudioContext on this browser at all'); throw new Error('no audio'); }
         audioCtx = new AC();
+        diag('context built, state=' + audioCtx.state + ' rate=' + audioCtx.sampleRate);
         master = audioCtx.createGain();
         master.gain.value = .7;
         master.connect(audioCtx.destination);
     }
-    if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+    if (audioCtx.state === 'suspended') {
+        diag('suspended, asking it to resume');
+        audioCtx.resume().then(() => diag('resume granted, state=' + audioCtx.state))
+                         .catch(e => diag('resume REFUSED: ' + e.message));
+    }
     return audioCtx.currentTime;
 }
 function tone(t0, { freq, to, dur = .18, type = 'triangle', vol = .2, at = 0 }) {
@@ -473,19 +498,25 @@ let clockGoing = false;
 function whenRunning(fn) {
     try {
         audioNow();
-        const go = () => { clockGoing = true; fn(audioCtx.currentTime + LEAD); };
+        const go = () => {
+            if (!clockGoing) diag('first sound scheduled, state=' + audioCtx.state +
+                ' muted=' + !soundOn + ' master=' + (master ? master.gain.value : '?'));
+            clockGoing = true;
+            fn(audioCtx.currentTime + LEAD);
+        };
         if (clockGoing || audioCtx.currentTime > 0) return go();
+        diag('clock at zero, waiting for it (state=' + audioCtx.state + ')');
         audioCtx.resume().catch(() => {});
         let tries = 0;
         const waitForTheClock = () => {
             if (audioCtx.currentTime > 0) return go();
-            if (++tries > 90) return;          // a second of nothing: no audio here
+            if (++tries > 90) { diag('GAVE UP: clock never moved, state=' + audioCtx.state); return; }
             requestAnimationFrame(waitForTheClock);
         };
         waitForTheClock();
     } catch (e) { /* no audio here, never mind */ }
 }
-const safely = fn => { if (!soundOn) return; whenRunning(fn); };
+const safely = fn => { if (!soundOn) { diag('sound is muted, skipping'); return; } whenRunning(fn); };
 let noiseBuf = null;
 function noise() {
     if (!noiseBuf) {
@@ -567,6 +598,12 @@ const jingleLose = () => safely(t => {
     hiss(t, { hp: 120, lp: 800, dur: .4, vol: .1, at: 2.55 });
 });
 const buzz = () => safely(t => tone(t, { freq: 210, to: 110, dur: .22, type: 'sawtooth', vol: .16 }));
+// the shimmer that goes with the line snapping onto its shape
+const sparkle = () => safely(t => {
+    [1568, 2093, 2637].forEach((f, i) =>
+        tone(t, { freq: f, dur: .5, type: 'triangle', vol: .08, at: .12 + i * .05 }));
+    hiss(t, { hp: 7000, dur: .45, vol: .1, at: .12 });
+});
 const tick = () => safely(t => tone(t, { freq: 1200, dur: .04, type: 'square', vol: .1 }));
 
 /* ---- the hum ----------------------------------------------------------
@@ -680,7 +717,10 @@ function unlockAudio() {
         o.connect(g); g.connect(audioCtx.destination);
         o.start();
         keepAwake = o;
-    } catch (e) { /* no audio here, never mind */ }
+        diag('keep-awake note started, state=' + audioCtx.state);
+        setTimeout(() => diag('a quarter second on: state=' + audioCtx.state +
+            (audioCtx.currentTime > 0 ? ' clock IS running' : ' clock STILL AT ZERO')), 250);
+    } catch (e) { diag('unlock threw: ' + e.message); }
 }
 for (const ev of ['touchstart', 'touchend', 'pointerdown', 'mousedown', 'keydown'])
     addEventListener(ev, unlockAudio, { capture: true, passive: true });
@@ -1258,6 +1298,31 @@ function drawDemo(ms, cx, cy) {
 }
 // what the moment of closing the lap throws off
 let burst = null;
+/* ---- what a good one gets ---------------------------------------------
+   Seventy and over and the line snaps onto the shape it was aiming at, holds
+   there for a beat with a light running round it, then eases back to what you
+   actually drew. It is the one thing the game knows and you do not: exactly
+   how close that was. */
+const SNAP_MS = 820, SNAP_MARK = 70;
+let snap = null;
+// out to perfect by a third of the way in, held, and relaxed back by the end
+function snapAmount(e) {
+    if (e <= 0 || e >= 1) return 0;
+    if (e < .3) { const t = e / .3; return 1 - Math.pow(1 - t, 3); }
+    if (e < .62) return 1;
+    const t = (e - .62) / .38;
+    return 1 - t * t;
+}
+// where a point would be if you had drawn it perfectly
+function snapPoint(p, amt, fit) {
+    if (!amt || !fit || !fit.R) return p;
+    const a = Math.atan2(p[1] - p[3], p[0] - p[2]);
+    const r = Math.hypot(p[0] - p[2], p[1] - p[3]);
+    const want = fit.R * profile(a, fit.form, fit.phi);
+    const rr = r + (want - r) * amt;
+    return [p[2] + Math.cos(a) * rr, p[3] + Math.sin(a) * rr, p[2], p[3], p[4]];
+}
+
 function seedBurst(ok) {
     const parts = [], n = ok ? 28 : 18;
     for (let i = 0; i < n; i++) {
@@ -1370,14 +1435,33 @@ function draw() {
            calls than one per sample. */
         let key = null, open = false;
         const flush = () => { if (open) { ctx.stroke(); open = false; } };
+        // a good one pulls itself onto the shape it was aiming at
+        let amt = 0, lit = -1;
+        if (snap) {
+            const e = (ms - snap.t0) / SNAP_MS;
+            if (e >= 1) snap = null;
+            else { amt = snapAmount(e); lit = Math.min(1, e / .62); }
+        }
+        if (amt > 0) {                         // the gold underneath, as one pass
+            ctx.save();
+            ctx.strokeStyle = `rgba(244, 179, 44, ${(amt * .85).toFixed(3)})`;
+            ctx.lineWidth = 15;
+            ctx.beginPath();
+            for (let i = 0; i < pts.length; i++) {
+                const q = snapPoint(pts[i], amt, fit);
+                i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]);
+            }
+            ctx.stroke();
+            ctx.restore();
+        }
         for (let i = 1; i < pts.length; i++) {
-            const a = pts[i - 1], b = pts[i];
+            const a = snapPoint(pts[i - 1], amt, fit), b = snapPoint(pts[i], amt, fit);
             let alpha = 1;
             if (fading) {
                 alpha = 1 - (ms - b[4]) / FADE_MS;
                 if (alpha <= 0) { flush(); key = null; continue; }
             }
-            const r = Math.hypot(b[0] - b[2], b[1] - b[3]);
+            const r = Math.hypot(pts[i][0] - b[2], pts[i][1] - b[3]);
             const want = fit && fit.R
                 ? fit.R * profile(Math.atan2(b[1] - b[3], b[0] - b[2]), fit.form, fit.phi) : mean;
             const off = mean > 0 ? Math.round(Math.abs(r - want) / mean * 240) / 240 : 0;
@@ -1396,6 +1480,21 @@ function draw() {
             ctx.lineTo(b[0], b[1]);
         }
         flush();
+        // and a light running once round it while it holds
+        if (lit >= 0 && lit < 1) {
+            const at = Math.floor(lit * (pts.length - 1)), span = Math.max(4, pts.length / 14 | 0);
+            const from = Math.max(0, at - span);
+            ctx.save();
+            ctx.strokeStyle = '#fffdf8';
+            ctx.lineWidth = 9;
+            ctx.beginPath();
+            for (let i = from; i <= at; i++) {
+                const q = snapPoint(pts[i], amt, fit);
+                i === from ? ctx.moveTo(q[0], q[1]) : ctx.lineTo(q[0], q[1]);
+            }
+            ctx.stroke();
+            ctx.restore();
+        }
         ctx.globalAlpha = 1;
     }
 
@@ -1454,7 +1553,7 @@ function frame() {
     // the dot moving, the swarm drifting, the ink fading, the demo lap and the
     // burst all need repainting - and the burst outlives the round it ended,
     // so it is checked whether or not one is still going
-    if (burst || drawing || demoOn() || (run.live && (has('drift') || has('swarm')))) draw();
+    if (burst || snap || drawing || demoOn() || (run.live && (has('drift') || has('swarm')))) draw();
 }
 
 /* ============================================================
@@ -1829,7 +1928,7 @@ function forgetAttempt() {
 
 function startRound(n) {
     rejected = false;
-    burst = null;
+    burst = null; snap = null;
     run.tally = false;
     clearTimeout(tallyT);
     clearTimeout(settleT);
@@ -1909,6 +2008,7 @@ function settle(score) {
     document.getElementById('again').textContent = passed ? `Round ${run.round + 1}` : 'Again!';
     if (!passed) run.live = false;
     // the moment the lap closes, before anything else has a say in it
+    if (score >= SNAP_MARK) { snap = { t0: now() }; sparkle(); }
     jolt(passed, record && !passed ? '#f4b32c' : null);
     sting(passed || record);
     seedBurst(passed || record);
