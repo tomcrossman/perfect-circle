@@ -63,8 +63,8 @@ body {
    ============================================================ */
 #hud {
     position: absolute; top: 0; left: 0; right: 0; z-index: 3;
-    display: flex; align-items: flex-start; justify-content: space-between;
-    gap: 6px; padding: 12px 10px; pointer-events: none;
+    display: flex; align-items: center; gap: 7px;
+    padding: 12px 10px; pointer-events: none;
 }
 .plate {
     display: flex; align-items: center; gap: 6px;
@@ -81,20 +81,6 @@ body {
     box-shadow: var(--pop-s);
 }
 #mute:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--ink); }
-/* what you are drawing, and the only thing on the HUD you can press besides
-   the sound. Switching starts the run again - a square is a different game */
-#shapes {
-    display: flex; gap: 3px; align-self: center; pointer-events: auto; padding: 3px;
-    background: var(--panel); border: 3px solid var(--ink); border-radius: 13px;
-    box-shadow: var(--pop-s);
-}
-#shapes button {
-    width: 30px; height: 27px; padding: 0; line-height: 0; cursor: pointer;
-    color: var(--ink); background: none; border: 0; border-radius: 9px;
-}
-#shapes button svg { width: 17px; height: 17px; vertical-align: middle; }
-#shapes button.on { background: var(--gold); }
-#shapes button:active { transform: translate(1px, 1px); }
 #mute .off { display: none; }
 #mute.muted .on { display: none; }
 #mute.muted .off { display: inline; }
@@ -248,14 +234,15 @@ body {
 #bestplate.beating .of { display: none; }
 @keyframes beat { from { transform: scale(1); } to { transform: scale(1.06); } }
 /* the clock, when the round has one */
+/* In the top row with everything else, taking whatever width is left. It is
+   hidden rather than removed between rounds, so the row never jumps. */
 #clock {
-    position: absolute; top: 62px; left: 50%; transform: translateX(-50%); z-index: 3;
-    width: min(250px, 72vw); display: none; align-items: center; gap: 7px;
-    padding: 4px 7px;
+    flex: 1; min-width: 64px; visibility: hidden;
+    display: flex; align-items: center; gap: 7px; padding: 4px 7px;
     background: var(--panel); border: 3px solid var(--ink); border-radius: 13px;
     box-shadow: var(--pop-s);
 }
-#clock.on { display: flex; }
+#clock.on { visibility: visible; }
 #clock .ico { width: 17px; height: 17px; flex: none; fill: var(--ink); }
 #clock .track {
     flex: 1; height: 13px; border-radius: 7px; overflow: hidden;
@@ -264,8 +251,7 @@ body {
 #clock i { display: block; height: 100%; width: 100%; background: var(--gold); }
 #clock.low i { background: var(--danger); }
 #clock.low { animation: lowPulse .3s ease-in-out infinite alternate; }
-@keyframes lowPulse { from { transform: translateX(-50%) scale(1); }
-                      to   { transform: translateX(-50%) scale(1.05); } }
+@keyframes lowPulse { from { transform: scale(1); } to { transform: scale(1.04); } }
 
 /* the round you are on, announced then faded */
 #banner {
@@ -274,7 +260,6 @@ body {
     font-family: var(--font-display); letter-spacing: .03em; color: var(--ink);
 }
 #banner .r { display: block; font-size: clamp(38px, 12vw, 60px); line-height: 1; }
-#banner .need { display: block; font-size: 17px; opacity: .6; margin-top: 2px; }
 #banner.go { animation: bannerGo 1.25s ease-out both; }
 @keyframes bannerGo {
     0%   { transform: scale(.7); opacity: 0; }
@@ -312,23 +297,23 @@ body {
    nor with each other, and a degree or two of tilt - which is the whole
    difference between a dialog and a doodle.
    ============================================================ */
-.plate, #mute, #shapes, #clock, #card .inner, .btn, #ribbon {
+.plate, #mute, #clock, #card .inner, .btn, #ribbon {
     border-radius: 22px 9px 19px 12px / 11px 20px 10px 23px;
 }
-.plate, #mute, #shapes, #clock, #card .inner, .btn { position: relative; }
-.plate::before, #mute::before, #shapes::before, #clock::before, #card .inner::before, .btn::before,
-.plate::after,  #mute::after,  #shapes::after,  #clock::after,  #card .inner::after,  .btn::after {
+.plate, #mute, #clock, #card .inner, .btn { position: relative; }
+.plate::before, #mute::before, #clock::before, #card .inner::before, .btn::before,
+.plate::after,  #mute::after,   #clock::after,  #card .inner::after,  .btn::after {
     content: ''; position: absolute; pointer-events: none;
     border: 2.4px solid var(--ink);
 }
 /* the inset drifts round rather than sitting evenly, so the second line runs
    wide on one side and tight on the other, the way an overdrawn box does */
-.plate::after, #mute::after, #shapes::after, #clock::after, #card .inner::after, .btn::after {
+.plate::after, #mute::after, #clock::after, #card .inner::after, .btn::after {
     inset: -4px -1px -2px -3px; opacity: .34;
     border-radius: 10px 21px 11px 20px / 20px 11px 22px 10px;
     transform: rotate(1.15deg);
 }
-.plate::before, #mute::before, #shapes::before, #clock::before, #card .inner::before, .btn::before {
+.plate::before, #mute::before, #clock::before, #card .inner::before, .btn::before {
     inset: -1px -3px -4px -1px; opacity: .17;
     border-radius: 19px 13px 23px 9px / 13px 22px 9px 19px;
     transform: rotate(-.95deg);
@@ -341,7 +326,6 @@ body {
    press, the beat and the entrances, and they all have to keep working */
 .plate { rotate: -1.3deg; }
 #mute  { rotate: 1.9deg; }
-#shapes { rotate: -.8deg; }
 #clock { rotate: .9deg; }
 .btn   { rotate: -1.1deg; }
 #card .inner { rotate: .6deg; }
@@ -373,9 +357,6 @@ body {
     .plate { font-size: 18px; padding: 3px 7px 1px; }
     .plate .ico { width: 14px; height: 14px; }
     .plate .of { margin-left: 5px; padding-left: 6px; }
-    #shapes { padding: 2px; gap: 1px; }
-    #shapes button { width: 22px; height: 23px; border-radius: 7px; }
-    #shapes button svg { width: 14px; height: 14px; }
     #mute { padding: 5px 6px 2px; }
     #mute svg { width: 19px; height: 19px; }
 }
@@ -415,22 +396,8 @@ body {
     <div id="hud">
         <div class="plate" id="bestplate">Round&nbsp;<span id="round-val">1</span><span
             class="of"><svg class="ico"><use href="#i-cup"/></svg><span id="best-val">0</span></span></div>
-        <div id="shapes" role="group" aria-label="What to draw">
-            <button data-shape="circle" class="on" aria-label="Circle"><svg viewBox="0 0 20 20"><circle
-                cx="10" cy="10" r="7.1" fill="none" stroke="currentColor" stroke-width="2.7"/></svg></button>
-            <button data-shape="triangle" aria-label="Triangle"><svg viewBox="0 0 20 20"><path
-                d="M 10 3.2 L 17 16.2 H 3 Z" fill="none" stroke="currentColor" stroke-width="2.7"
-                stroke-linejoin="round"/></svg></button>
-            <button data-shape="square" aria-label="Square"><svg viewBox="0 0 20 20"><rect
-                x="3.4" y="3.4" width="13.2" height="13.2" rx="1.6" fill="none" stroke="currentColor"
-                stroke-width="2.7"/></svg></button>
-            <button data-shape="random" aria-label="Shuffle"><svg viewBox="0 0 20 20"><g
-                transform="rotate(-18 10 10)"><rect x="3.2" y="3.2" width="13.6" height="13.6"
-                rx="3.2" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="6.8"
-                cy="6.8" r="1.4" fill="currentColor"/><circle cx="10" cy="10" r="1.4"
-                fill="currentColor"/><circle cx="13.2" cy="13.2" r="1.4"
-                fill="currentColor"/></g></svg></button>
-        </div>
+        <div id="clock"><svg class="ico"><use href="#i-clock"/></svg><span
+            class="track"><i></i></span></div>
         <button id="mute" aria-label="Sound on or off">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#241F2E"
                  stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
@@ -441,7 +408,6 @@ body {
         </button>
     </div>
 
-    <div id="clock"><svg class="ico"><use href="#i-clock"/></svg><span class="track"><i></i></span></div>
     <div id="banner"></div>
 
     <div id="tally"></div>
@@ -456,7 +422,7 @@ body {
             <p id="rating">Wonky</p>
             <p id="pass"></p>
             <p id="note"></p>
-            <div id="summary"><svg class="ico"><use href="#i-cup"/></svg>best <span
+            <div id="summary"><svg class="ico"><use href="#i-cup"/></svg>Best: Round <span
                 id="card-best">0</span></div>
             <button class="btn" id="again">Round 2</button>
         </div>
@@ -466,7 +432,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v55';
+const APP_VERSION = 'v56';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -799,7 +765,7 @@ const twistCount = r => Math.min(3, 1 + Math.floor((r - 4) / 4));
 const timeFor = r => 1.6 + 3.4 * Math.pow(.92, r - 1);
 
 const run = { round: 0, live: false, tally: false, twists: [], limit: 0, drift: 0, swarmN: 0,
-              mode: 'circle', form: 'circle', way: 0 };
+              form: 'circle', way: 0 };
 const has = k => run.twists.includes(k);
 // the clock is always on, so nothing has to ask
 
@@ -938,9 +904,10 @@ const SHAPES = {
         'That cat has been in a fight', 'One ear short', 'That is a bear',
         'The RSPCA would like a word', 'A potato with ears', 'More of a hamster'] },
 };
-// the picker offers three shapes and the shuffle; the rest are its business
-const MODES = ['circle', 'triangle', 'square', 'random'];
-// weighted so the familiar three carry it and a star is a genuine event
+// Every round is dealt, weighted so the familiar three carry it and a star is
+// a genuine event. Round one is always one of the three you would think of
+// first, so nobody meets a lightning bolt before they have drawn anything.
+const OPENERS = ['circle', 'triangle', 'square'];
 const RANDOM_POOL = ['circle', 'circle', 'circle', 'triangle', 'triangle', 'triangle',
                      'square', 'square', 'square', 'pentagon', 'pentagon',
                      'hexagon', 'hexagon', 'star', 'star',
@@ -1253,24 +1220,16 @@ function drawWay(cx, cy) {
    paragraph of instructions would and gets out of the way by itself. */
 const DEMO = { sweep: 2.2, hold: .5, fade: .45, gap: .7 };
 const DEMO_CYCLE = DEMO.sweep + DEMO.hold + DEMO.fade + DEMO.gap;
-const IDLE_WAIT = 4.5;              // seconds of nothing before it offers again
-// a rejection clears sooner than that: you have read it long before you have
-// sat there doing nothing for four and a half seconds
+// how long a rejection sits there before it clears itself off the page
 const REJECT_WAIT = 1.8;
 const BANNER_MS = 1250;             // as long as the round announcement is on screen
-let taught = false, demoT0 = now(), idleT0 = now();
-// Before the first stroke it just runs, on any round it comes back if they
-// have sat there long enough - the same animation doing both jobs, since
-// stalling on round nine is the same question as stalling on round one.
-const demoOn = () => run.live && !drawing && !pts.length && card.hidden
-                     && (!taught || run.mode === 'random'
-                         || (now() - idleT0) / 1000 > IDLE_WAIT);
+let demoT0 = now(), idleT0 = now();
+// Every round deals its own shape, so the lap is not a reminder any more - it
+// is the only way to know what was asked for. It runs until they start.
+const demoOn = () => run.live && !drawing && !pts.length && card.hidden;
 function drawDemo(ms, cx, cy) {
-    // on a shuffle round it is not a reminder, it is the only way to know what
-    // was asked for, so it runs from the off - once the banner has cleared
-    const from = (!taught || run.mode === 'random') ? demoT0 : idleT0 + IDLE_WAIT * 1000;
-    if (ms < from) return;
-    const t = ((ms - from) / 1000) % DEMO_CYCLE;
+    if (ms < demoT0) return;                  // waiting for the banner to clear
+    const t = ((ms - demoT0) / 1000) % DEMO_CYCLE;
     if (t > DEMO.sweep + DEMO.hold + DEMO.fade) return;
     const e = Math.min(1, t / DEMO.sweep);
     const over = t - DEMO.sweep - DEMO.hold;
@@ -1535,7 +1494,6 @@ function start(x, y) {
     penT0 = now();
     pts = [sample(x, y)];
     liveJ = null; rejected = false;
-    taught = true;                  // they have got the idea; stop showing them
     promptEl.classList.add('gone');
     bannerEl.classList.remove('go');
     liveEl.classList.add('on');
@@ -1587,7 +1545,7 @@ function timeUp() {
 let usingTouch = false;
 addEventListener('touchstart', e => {
     usingTouch = true;
-    if (e.target.closest('.btn, #mute, #shapes')) return;
+    if (e.target.closest('.btn, #mute')) return;
     e.preventDefault();
     start(e.touches[0].clientX, e.touches[0].clientY);
 }, { passive: false });
@@ -1601,7 +1559,7 @@ addEventListener('touchcancel', end);
 // pointerdown arrives before touchstart, so a finger is waved off by its own type
 addEventListener('pointerdown', e => {
     if (e.pointerType === 'touch') { usingTouch = true; return; }
-    if (usingTouch || e.target.closest('.btn, #mute, #shapes')) return;
+    if (usingTouch || e.target.closest('.btn, #mute')) return;
     start(e.clientX, e.clientY);
 });
 addEventListener('pointermove', e => {
@@ -1668,16 +1626,14 @@ function jolt(ok, tint) {
 
 // how far you got, not a sum of percentages: the bar rises every round, so the
 // round you reached is the difficulty you survived and needs no explaining
-// A best per shape, because a square is not a circle and one number across
-// both would mean nothing. The old single score becomes the circle's.
-const bestKey = k => 'pc-rounds-' + k;
-const bests = { circle: 0, triangle: 0, square: 0, random: 0 };
+// One score again, now there is one way to play. Anyone who has a shuffle
+// best already carries it over; the per-shape ones are retired.
+const bestKey = 'pc-rounds-mixed';
+let best = 0;
 try {
-    for (const k of MODES) bests[k] = parseInt(localStorage.getItem(bestKey(k)) || '0', 10) || 0;
-    const old = parseInt(localStorage.getItem('pc-rounds') || '0', 10) || 0;
-    if (old && !bests.circle) { bests.circle = old; localStorage.setItem(bestKey('circle'), String(old)); }
+    best = parseInt(localStorage.getItem(bestKey) ||
+                    localStorage.getItem('pc-rounds-random') || '0', 10) || 0;
 } catch (e) { /* private mode */ }
-let best = bests.circle;
 const fmt = n => Math.round(n).toLocaleString('en-GB');
 const pc = n => n.toFixed(1);
 document.getElementById('best-val').textContent = fmt(best);
@@ -1850,7 +1806,7 @@ function forgetAttempt() {
     rejected = false;
     pts = []; verdict = null; liveJ = null;
     sayWhatToDraw(run.round);
-    idleT0 = now() - IDLE_WAIT * 1000;      // so the lap starts at once
+    demoT0 = now();                        // and the lap starts again
     draw();
 }
 
@@ -1866,9 +1822,7 @@ function startRound(n) {
     run.live = true;
     run.twists = rollTwists(n);
     run.limit = timeFor(n);
-    // a shuffle round deals its own shape, and may deal one you are never
-    // offered in the picker - which is the point of the mode
-    run.form = run.mode === 'random' ? pick(RANDOM_POOL) : run.mode;
+    run.form = n === 1 ? pick(OPENERS) : pick(RANDOM_POOL);
     run.way = has('way') ? (natural ? -natural : -1) : 0;
     run.drift = Math.min(44, 13 + (n - TWISTS.drift.from) * 2.8);
     run.swarmN = Math.min(26, 8 + (n - TWISTS.swarm.from) * 1.6) | 0;
@@ -1881,9 +1835,7 @@ function startRound(n) {
     idleT0 = now(); demoT0 = now() + BANNER_MS;
     view = { y: 0, k: 1 };
 
-    bannerEl.innerHTML = `<span class="r">Round ${n}</span>` +
-        `<span class="need">${run.way ? wayName(run.way) + ' ' : ''}${SHAPES[run.form].name}` +
-        ` &middot; ${pc(passMark(n))}% in ${run.limit.toFixed(1)}s</span>`;
+    bannerEl.innerHTML = `<span class="r">Round ${n}</span>`;
     bannerEl.classList.remove('go');
     void bannerEl.offsetWidth;
     bannerEl.classList.add('go');
@@ -1905,8 +1857,8 @@ function settle(score) {
     const done = run.round - (passed ? 0 : 1);          // rounds actually completed
     const record = !passed && done > best;
     if (record) {
-        best = bests[run.mode] = done;
-        try { localStorage.setItem(bestKey(run.mode), String(best)); } catch (e) { /* private mode */ }
+        best = done;
+        try { localStorage.setItem(bestKey, String(best)); } catch (e) { /* private mode */ }
     }
     card.className = row[1] + (passed ? '' : ' failed') + (record ? ' record' : '');
     document.getElementById('ribbon').textContent = record ? 'NEW BEST' : 'RUN OVER';
@@ -1984,29 +1936,6 @@ function confetti(n) {
         setTimeout(() => d.remove(), 2700);
     }
 }
-
-const shapeBox = document.getElementById('shapes');
-function setShape(k, restart) {
-    run.mode = k;
-    best = bests[k];
-    for (const b of shapeBox.children) b.classList.toggle('on', b.dataset.shape === k);
-    try { localStorage.setItem('pc-shape', k); } catch (e) { /* private mode */ }
-    if (restart) {
-        card.hidden = true; card.className = '';
-        easeView({ y: 0, k: 1 });
-        startRound(1);
-    } else showRound(run.round || 1);
-}
-shapeBox.addEventListener('click', e => {
-    const b = e.target.closest('button');
-    if (!b || b.dataset.shape === run.mode) return;
-    e.stopPropagation();
-    setShape(b.dataset.shape, true);
-});
-try {
-    const k = localStorage.getItem('pc-shape');
-    if (MODES.includes(k)) setShape(k, false);
-} catch (e) { /* private mode */ }
 
 fit();
 startRound(1);
