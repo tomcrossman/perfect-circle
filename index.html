@@ -398,7 +398,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v31';
+const APP_VERSION = 'v32';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -489,34 +489,53 @@ const tick = () => safely(t => tone(t, { freq: 1200, dur: .04, type: 'square', v
    pitch is driven by how far round the lap you have got, so closing the circle
    is something you hear as well as see. The filter opens with it, so it
    brightens rather than just going up. */
-const HUM_LO = 170, HUM_HI = 640;
-let hum = null;
+// One voice would be the same noise every single stroke, and you hear this
+// one more than anything else in the game. So: a handful of them, never the
+// same one twice running, each transposed a little on the way in - the shape
+// of the sound is the constant, not the sound itself.
+const HUM_VOICES = [
+    { type: 'sawtooth', lo: 170, hi: 640, q:  6, track: 3.4, rate: 5.4, depth: 3.6, vol: .15 },
+    { type: 'square',   lo: 150, hi: 560, q:  9, track: 2.6, rate: 6.9, depth: 5.0, vol: .11 },
+    { type: 'triangle', lo: 205, hi: 780, q:  4, track: 4.2, rate: 3.3, depth: 8.0, vol: .19 },
+    { type: 'sawtooth', lo: 245, hi: 830, q: 12, track: 2.2, rate: 7.6, depth: 2.8, vol: .13 },
+    { type: 'square',   lo: 130, hi: 470, q:  7, track: 3.0, rate: 9.4, depth: 7.0, vol: .11 },
+    { type: 'triangle', lo: 300, hi: 990, q:  3, track: 5.0, rate: 4.3, depth: 2.4, vol: .20 },
+];
+let hum = null, lastVoice = -1;
+function pickVoice() {
+    let i = (Math.random() * HUM_VOICES.length) | 0;
+    if (i === lastVoice) i = (i + 1 + ((Math.random() * (HUM_VOICES.length - 1)) | 0)) % HUM_VOICES.length;
+    lastVoice = i;
+    const v = HUM_VOICES[i], k = .92 + Math.random() * .16;   // and never quite the same pitch
+    return { ...v, lo: v.lo * k, hi: v.hi * k };
+}
 function humStart() {
     if (!soundOn) return;
     try {
-        const t = audioNow();
+        const t = audioNow(), v = pickVoice();
         const o = audioCtx.createOscillator(), g = audioCtx.createGain(),
               f = audioCtx.createBiquadFilter(), lfo = audioCtx.createOscillator(),
               la = audioCtx.createGain();
-        o.type = 'sawtooth';
-        o.frequency.setValueAtTime(HUM_LO, t);
-        f.type = 'lowpass'; f.Q.value = 6; f.frequency.setValueAtTime(HUM_LO * 3.4, t);
+        o.type = v.type;
+        o.frequency.setValueAtTime(v.lo, t);
+        f.type = 'lowpass'; f.Q.value = v.q; f.frequency.setValueAtTime(v.lo * v.track, t);
         g.gain.setValueAtTime(.0001, t);
-        g.gain.exponentialRampToValueAtTime(.15, t + .07);
+        g.gain.exponentialRampToValueAtTime(v.vol, t + .07);
         // a touch of movement, so it is a voice rather than a test tone
-        lfo.frequency.value = 5.4; la.gain.value = 3.6;
+        lfo.frequency.value = v.rate; la.gain.value = v.depth;
         lfo.connect(la); la.connect(o.frequency);
         o.connect(f); f.connect(g); g.connect(master);
         o.start(t); lfo.start(t);
-        hum = { o, g, f, lfo };
+        hum = { o, g, f, lfo, v };
     } catch (e) { /* no audio here, never mind */ }
 }
 function humTo(lap) {
     if (!hum) return;
     try {
-        const t = audioCtx.currentTime, hz = HUM_LO + (HUM_HI - HUM_LO) * Math.min(1, lap);
+        const t = audioCtx.currentTime, v = hum.v;
+        const hz = v.lo + (v.hi - v.lo) * Math.min(1, lap);
         hum.o.frequency.setTargetAtTime(hz, t, .06);
-        hum.f.frequency.setTargetAtTime(hz * 3.4, t, .06);
+        hum.f.frequency.setTargetAtTime(hz * v.track, t, .06);
     } catch (e) { /* never mind */ }
 }
 function humStop() {
