@@ -48,10 +48,10 @@ body {
     position: fixed; inset: 0; overflow: hidden; touch-action: none;
     background:
         radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(120, 96, 52, .09) 100%),
-        repeating-linear-gradient(0deg, var(--rule2) 0 1.4px, transparent 1.4px 125px),
-        repeating-linear-gradient(90deg, var(--rule2) 0 1.4px, transparent 1.4px 125px),
-        repeating-linear-gradient(0deg, var(--rule) 0 1px, transparent 1px 25px),
-        repeating-linear-gradient(90deg, var(--rule) 0 1px, transparent 1px 25px),
+        repeating-linear-gradient(0deg, var(--rule2) 0 1.3px, transparent 1.3px 85px),
+        repeating-linear-gradient(90deg, var(--rule2) 0 1.3px, transparent 1.3px 85px),
+        repeating-linear-gradient(0deg, var(--rule) 0 1px, transparent 1px 17px),
+        repeating-linear-gradient(90deg, var(--rule) 0 1px, transparent 1px 17px),
         var(--paper);
 }
 
@@ -469,7 +469,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v47';
+const APP_VERSION = 'v48';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -803,7 +803,7 @@ function rollTwists(r) {
 }
 
 /* ---- the dot, which does not always stay still ---------------------- */
-let roundT0 = 0, raf = 0;
+let roundT0 = 0, raf = 0, settleT = 0;
 const now = () => performance.now();
 function dotAt(ms) {
     if (!has('drift')) return [CX, CY];
@@ -867,17 +867,32 @@ const SHAPES = {
     // the three you are never offered, and only ever meet on a random round
     pentagon: { n: 5, name: 'pentagon', lines: 'odd' },
     hexagon:  { n: 6, name: 'hexagon',  lines: 'odd' },
-    star:     { n: 5, inner: .46, name: 'star', lines: 'odd' },
+    star:     { n: 5, inner: .46, name: 'star',    lines: 'odd' },
+    // and the ones that are only there to be funny
+    fish:     { name: 'fish',     lines: 'odd' },
+    snowman:  { name: 'snowman',  lines: 'odd' },
+    bolt:     { name: 'lightning bolt', lines: 'odd' },
+    heart:    { name: 'heart',    lines: 'odd' },
+    house:    { name: 'house',    lines: 'odd' },
+    cat:      { name: 'cat',      lines: 'odd' },
 };
 // the picker offers three shapes and the shuffle; the rest are its business
 const MODES = ['circle', 'triangle', 'square', 'random'];
 // weighted so the familiar three carry it and a star is a genuine event
 const RANDOM_POOL = ['circle', 'circle', 'circle', 'triangle', 'triangle', 'triangle',
                      'square', 'square', 'square', 'pentagon', 'pentagon',
-                     'hexagon', 'hexagon', 'star'];
+                     'hexagon', 'hexagon', 'star', 'star',
+                     'fish', 'snowman', 'bolt', 'heart', 'house', 'cat'];
 function profile(a, key, phi) {
     const f = SHAPES[key];
-    if (!f || !f.n) return 1;
+    if (!f) return 1;
+    if (f.table) {
+        let d = (a - phi) % (Math.PI * 2);
+        if (d < 0) d += Math.PI * 2;
+        const x = d / (Math.PI * 2) * TABLE_N, i = Math.floor(x), fr = x - i;
+        return f.table[i % TABLE_N] * (1 - fr) + f.table[(i + 1) % TABLE_N] * fr;
+    }
+    if (!f.n) return 1;
     const n = f.n, sec = 2 * Math.PI / n, half = Math.PI / n;
     if (!f.inner) {                       // a regular polygon, measured from an edge
         let d = (a - phi + half) % sec;
@@ -896,20 +911,86 @@ function profile(a, key, phi) {
 // the way up a shape looks right when it is being demonstrated
 function uprightTurn(key) {
     const f = SHAPES[key];
-    if (!f.n) return 0;
+    if (f.table || !f.n) return 0;                          // drawn the right way up already
     if (f.inner) return -Math.PI / 2;                       // a point at the top
     return -Math.PI / 2 + (f.n % 2 ? Math.PI / f.n : 0);    // odd sides point, even sides sit
 }
+
+/* ---- the silly ones ----------------------------------------------------
+   Nothing about the scoring cares whether a shape is regular - only that its
+   distance from the middle is a single value at every angle. So these are
+   authored as outlines, in parts where it helps, and baked once into a table
+   of radius by angle that profile() reads exactly as it works out a polygon.
+   Where a ray would cross an outline more than once the farthest crossing
+   wins, which is what keeps the table single-valued whatever was drawn.
+
+   Authored with y downwards, to match the screen, and the right way up. */
+const arc = (cx, cy, r, n, from = 0, to = Math.PI * 2) => {
+    const out = [];
+    for (let i = 0; i < n; i++) {
+        const a = from + (to - from) * i / n;
+        out.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]);
+    }
+    return out;
+};
+const heartRing = n => {
+    const out = [];
+    for (let i = 0; i < n; i++) {
+        const t = i / n * Math.PI * 2;
+        const x = 16 * Math.pow(Math.sin(t), 3);
+        const y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+        out.push([x / 17, (y + 1) / 17]);
+    }
+    return out;
+};
+const OUTLINES = {
+    fish: [[[-1.55, -.55], [-.95, 0], [-1.55, .55], [-.6, .5], [.1, .62], [.75, .45],
+            [1.15, .18], [1.3, 0], [1.15, -.18], [.75, -.45], [.1, -.62], [-.6, -.5]]],
+    snowman: [arc(0, .38, .70, 44), arc(0, -.60, .46, 36)],
+    bolt: [[[.28, -1], [-.62, .18], [-.20, .30], [-.30, 1], [.62, -.20], [.20, -.30]]],
+    heart: [heartRing(64)],
+    house: [[[-.8, -.05], [.8, -.05], [.8, .85], [-.8, .85]], [[-.95, -.02], [0, -.95], [.95, -.02]]],
+    cat: [arc(0, .1, .8, 44), [[-.72, -.36], [-.78, -1], [-.18, -.62]],
+          [[.72, -.36], [.78, -1], [.18, -.62]]],
+};
+const TABLE_N = 720;
+function bakeOutline(parts) {
+    const t = new Float64Array(TABLE_N);
+    for (let i = 0; i < TABLE_N; i++) {
+        const a = i / TABLE_N * Math.PI * 2, cx = Math.cos(a), cy = Math.sin(a);
+        let far = 0;
+        for (const ring of parts) {
+            for (let j = 0; j < ring.length; j++) {
+                const q = ring[j], w = ring[(j + 1) % ring.length];
+                const ex = w[0] - q[0], ey = w[1] - q[1];
+                const den = ex * cy - cx * ey;
+                if (!den) continue;
+                const u = (ex * q[1] - ey * q[0]) / den;      // how far along the ray
+                const v = (cx * q[1] - cy * q[0]) / den;      // how far along the edge
+                if (u > far && v >= 0 && v <= 1) far = u;
+            }
+        }
+        t[i] = far;
+    }
+    let max = 0;
+    for (const r of t) if (r > max) max = r;
+    for (let i = 0; i < TABLE_N; i++) t[i] /= max;            // corners at 1, as a polygon
+    return t;
+}
+for (const k of Object.keys(OUTLINES)) if (SHAPES[k]) SHAPES[k].table = bakeOutline(OUTLINES[k]);
+
 /* Which way up they drew it is their business, so the turn is fitted rather
    than demanded: sweep one sector coarsely, then close in around the best.
    A sector is all that is needed - the profile repeats every one of them. */
 function fitTurn(ang, rad, key) {
-    const n = SHAPES[key] ? SHAPES[key].n : 0;
-    if (!n) {                                   // a circle has nothing to turn
+    const f = SHAPES[key] || {};
+    if (!f.n && !f.table) {                     // a circle has nothing to turn
         let t = 0; for (const r of rad) t += r;
         return { phi: 0, R: t / rad.length };
     }
-    const sec = 2 * Math.PI / n;
+    // a fish has no symmetry to exploit, so its whole turn is the sector
+    const sec = f.table ? Math.PI * 2 : 2 * Math.PI / f.n;
+    const coarse = f.table ? 36 : 16;
     let best = null;
     const tryPhi = phi => {
         let su = 0, sru = 0;
@@ -925,9 +1006,9 @@ function fitTurn(ang, rad, key) {
         }
         if (!best || v < best.v) best = { phi, R, v };
     };
-    for (let i = 0; i < 16; i++) tryPhi(i * sec / 16);
+    for (let i = 0; i < coarse; i++) tryPhi(i * sec / coarse);
     const c = best.phi;
-    for (let i = -4; i <= 4; i++) tryPhi(c + i * sec / 64);
+    for (let i = -4; i <= 4; i++) tryPhi(c + i * sec / (coarse * 4));
     return best;
 }
 
@@ -1077,8 +1158,9 @@ function drawDemo(ms, cx, cy) {
     ctx.strokeStyle = '#241F2E';
     ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     ctx.beginPath();
+    const dir = run.way || 1;         // show them the way round they were asked for
     for (let i = 0; i <= STEPS * e; i++) {
-        const a = -Math.PI / 2 + (i / STEPS) * Math.PI * 2;
+        const a = -Math.PI / 2 + dir * (i / STEPS) * Math.PI * 2;
         const rr = R * profile(a, run.form, phi);
         hx = cx + Math.cos(a) * rr; hy = cy + Math.sin(a) * rr;
         i ? ctx.lineTo(hx, hy) : ctx.moveTo(hx, hy);
@@ -1247,6 +1329,7 @@ function easeView(to) {
 }
 // the circle wants to sit in the gap between the HUD and whatever is below it
 function liftView(floor) {
+    if (!verdict || !verdict.mean) return;
     const top = 64;
     const bottom = Math.max(top + 120,
         (floor !== undefined ? floor : card.querySelector('.inner').getBoundingClientRect().top) - 18);
@@ -1596,6 +1679,7 @@ function startRound(n) {
     burst = null;
     run.tally = false;
     clearTimeout(tallyT);
+    clearTimeout(settleT);
     tallyEl.classList.remove('on');
     showRound(n);
     run.round = n;
@@ -1682,7 +1766,7 @@ function settle(score) {
         tallyT = setTimeout(nextRound, 1400);
         return;
     }
-    setTimeout(() => {
+    settleT = setTimeout(() => {
         card.hidden = false;
         liftView();
         if (record) { confetti(30); jingleWin(); } else jingleLose();
