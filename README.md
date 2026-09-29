@@ -53,6 +53,7 @@ round 12.
 | 5 | Which way round | The round names a direction, and going the other way is not a lap |
 | 6 | Drifting dot | The dot wanders while you draw, and you are judged against where it was at the time |
 | 8 | Swarm | Decoy dots drift about. Nothing to hit - they just make a line hard to judge |
+| 10 | Blind | Nothing appears on the paper at all until you let go |
 
 ## The shapes
 
@@ -119,6 +120,11 @@ are not the same question. Each band has its own pool of lines, and the bad
 ones have the most, because they are the funny ones. Down in the bottom bands
 the shape's own jokes join the generic ones, so a bad snowman gets told it is a
 peanut rather than that it is a blob.
+
+The blind round is the one twist that could be taken for the game having
+stopped working, so two things carry it: the hand stays on your fingertip the
+whole way round, and the hum still climbs with the lap. Both are the game
+plainly reading you, and the lap arrives all at once the moment you let go.
 
 Closing the lap is answered straight away, before anything else has a say in
 it: a slap and a flinch of the whole screen for a miss, a sweep and a swell for

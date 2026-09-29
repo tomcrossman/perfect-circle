@@ -457,7 +457,7 @@ body.waiting #hud { display: none; }
 </div>
 
 <script>
-const APP_VERSION = 'v75';
+const APP_VERSION = 'v76';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -841,6 +841,7 @@ const TWISTS = {
     way:   { from: 5 },
     drift: { from: 6 },
     swarm: { from: 8 },
+    blind: { from: 10 },
 };
 // Which way you go round is a habit you do not know you have, so this one is
 // not random: it demands the opposite of whichever way you last got round
@@ -879,7 +880,10 @@ function rollTwists(r) {
     const rest = pool.filter(k => !picked.includes(k));
     while (picked.length < want && rest.length) picked.push(rest.splice(Math.random() * rest.length | 0, 1)[0]);
     hadWay = picked.includes('way');
-    return TWIST_KEYS.filter(k => picked.includes(k));
+    // ink that fades under a round with no ink in it is a rule about something
+    // you were never going to see, so the blind one simply eats it
+    const out = picked.includes('blind') ? picked.filter(k => k !== 'fade') : picked;
+    return TWIST_KEYS.filter(k => out.includes(k));
 }
 
 /* ---- the dot, which does not always stay still ---------------------- */
@@ -1547,7 +1551,13 @@ function draw() {
         }
     }
 
-    if (pts.length > 1) {
+    /* The blind round draws nothing at all while the pen is down. It is the
+       only twist that could be mistaken for the game having stopped working,
+       so two things carry it: the hand stays on your fingertip the whole way
+       round, and the hum still climbs with the lap - both of which are the
+       game plainly reading you. Everything is recorded as usual and the whole
+       lap appears the instant you let go, which is the round. */
+    if (pts.length > 1 && !(has('blind') && drawing)) {
         // colour each bit by how far it is from the shape that best fits what
         // has been drawn so far - which for a circle is just its own average
         const fit = (verdict && verdict.ok ? verdict : liveJ) || null;
@@ -2082,10 +2092,13 @@ function startRound(n) {
     run.round = n;
     run.live = true;
     run.twists = rollTwists(n);
-    run.limit = timeFor(n) * SHAPES[run.form].pace;
     const before = run.form;
     run.form = n === 1 ? pick(OPENERS) : dealFor(n);
     run.repeat = n > 1 && run.form === before;
+    // after the shape is dealt, not before it: the allowance is scaled by how
+    // far there is to travel round this round's shape, and taking it from the
+    // last one's meant the sword's extra time arrived a round too late
+    run.limit = timeFor(n) * SHAPES[run.form].pace;
     run.way = has('way') ? (natural ? -natural : -1) : 0;
     run.drift = Math.min(44, 13 + (n - TWISTS.drift.from) * 2.8);
     run.swarmN = Math.min(26, 8 + (n - TWISTS.swarm.from) * 1.6) | 0;
