@@ -419,7 +419,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v62';
+const APP_VERSION = 'v63';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -843,52 +843,52 @@ const SHAPES = {
        their own down at the bottom - which is the only band anybody reads. */
     pentagon: { n: 5, name: 'pentagon', lines: 'odd', jokes: [
         'That is a house, not a pentagon', 'Five sides was the whole brief',
-        'The Pentagon is not worried', 'Somewhere between four sides and six'] },
+        'The Pentagon is not worried', 'Somewhere between four sides and six', 'Four sides and a wish', 'That is a home plate'] },
     hexagon:  { n: 6, name: 'hexagon', lines: 'odd', jokes: [
         'The bees are disappointed', 'That is a nut, and a stripped one',
-        'Six sides. Six.', 'That would not tile anything'] },
+        'Six sides. Six.', 'That would not tile anything', 'That is a stop sign, badly', 'Five sides and a maybe'] },
     star:     { n: 5, inner: .46, name: 'star', lines: 'odd', jokes: [
         'That is a starfish', 'Nobody is wishing on that', 'That star has collapsed',
-        'Five points, loosely interpreted', 'A star, after a long night'] },
+        'Five points, loosely interpreted', 'A star, after a long night', 'That is a sheriff badge', 'Wish upon something else'] },
     fish:     { name: 'fish', lines: 'odd', jokes: [
         'That is a tadpole', 'That fish has been in an accident',
         'Something the cat brought back', 'That is a sardine, at best',
-        'Drawn by someone who has only heard of fish', 'Gone off'] },
+        'Drawn by someone who has only heard of fish', 'Gone off', 'Off the bone', 'That is a whale, and not a well one'] },
     snowman:  { name: 'snowman', lines: 'odd', jokes: [
         'That is a peanut', 'He needs a scarf and a lie down',
         'Two circles having an argument', 'That is a cottage loaf',
-        'He has melted somewhat', 'That is a figure eight'] },
+        'He has melted somewhat', 'That is a figure eight', 'He has been out in the sun', 'That is a snow-blob'] },
     bolt:     { name: 'lightning bolt', from: 8, lines: 'odd', jokes: [
         'Zeus would not sign that off', 'Low voltage',
         'That is a squiggle with ambition', 'That is a very tired Z',
-        'More of a gentle static', 'Struck twice, badly'] },
+        'More of a gentle static', 'Struck twice, badly', 'That is a squiggle', 'The lights barely flickered'] },
     heart:    { name: 'heart', lines: 'odd', jokes: [
         'Anatomically speaking, no', 'That heart needs seeing to',
         'That is a peach', 'Love, but wonky', 'Broken, clearly',
-        'A cardiologist is on the way'] },
+        'A cardiologist is on the way', 'Needs a defibrillator', 'Sweet, but wrong'] },
     house:    { name: 'house', lines: 'odd', jokes: [
         'Planning permission denied', 'That is a shed', 'Subsidence',
-        'The roof is going', 'Structurally unsound', 'Sold as seen'] },
+        'The roof is going', 'Structurally unsound', 'Sold as seen', 'That is a tent', 'Not to code'] },
     /* Geometrically this is the square - the fit finds whatever turn you drew
        it at, so the two cannot be told apart and nor should they be. What
        differs is what you were asked for, and people draw a diamond quite
        differently from a square. Stood on its corner, hence the turn. */
     diamond:  { n: 4, up: -Math.PI / 4, name: 'diamond', lines: 'odd', jokes: [
         'That is a square, and you know it', 'Cubic zirconia',
-        'Not anybody\u2019s best friend', 'Flawed, I am afraid', 'That is paste'] },
+        'Not anybody\u2019s best friend', 'Flawed, I am afraid', 'That is paste', 'That is a kite', 'More of a lozenge'] },
     poo:      { name: 'poo', lines: 'odd', jokes: [
         'Fitting', 'That is a Mr Whippy', 'It has gone flat',
-        'Needs more swirl', 'That is a soft serve', 'Well, quite'] },
+        'Needs more swirl', 'That is a soft serve', 'Well, quite', 'That is a hat', 'It has been stepped in'] },
     sword:    { name: 'sword', from: 6, lines: 'odd', jokes: [
         'That is a butter knife', 'Excalibur it is not', 'That is a cross, surely',
-        'Blunt', 'You would stop nobody with that', 'More of a letter opener'] },
+        'Blunt', 'You would stop nobody with that', 'More of a letter opener', 'That is a crucifix', 'A weapon of last resort'] },
     shield:   { name: 'shield', lines: 'odd', jokes: [
         'That would stop nothing', 'The arrows are getting through',
         'That is a plectrum', 'More of a tea tray', 'That is a badge',
-        'Hand it back to the armourer'] },
+        'Hand it back to the armourer', 'That is a leaf', 'It would fold on impact'] },
     cat:      { name: 'cat', lines: 'odd', jokes: [
         'That cat has been in a fight', 'One ear short', 'That is a bear',
-        'The RSPCA would like a word', 'A potato with ears', 'More of a hamster'] },
+        'The RSPCA would like a word', 'A potato with ears', 'More of a hamster', 'That is a dog', 'It has had its ears back'] },
 };
 /* Every round is dealt, weighted so the familiar three carry it and a star is
    a genuine event. Round one is always one of the three you would think of
@@ -1671,14 +1671,18 @@ const RATINGS = {
     [50, 'm-meh',
      ['Wonky, but through', 'It counts', 'Got away with that one', 'Near enough'],
      ['A bit wobbly', 'You lost count of the sides', 'Two corners went missing',
-      'That started well', 'An honest attempt', 'Somewhere in there is the right shape']],
+      'That started well', 'An honest attempt', 'Somewhere in there is the right shape', 
+      'You lost the thread halfway', 'It started so well',
+      'Three quarters of the right idea', 'A shape having second thoughts']],
     [0, 'm-poor',
      ['A passing blob', 'Not pretty. Through.', 'Scraped it', 'Ugly, but it counts',
       'We will say no more about it', 'A blob, and a lucky one'],
      ['That is a blob', 'That is a puddle', 'Ambitious', 'A shape, certainly',
       'Drawn from memory, and a poor one', 'That is a splat',
       'Geometry would like a word', 'Nobody will know what that was',
-      'That is a sea creature', 'Corners are not optional']],
+      'That is a sea creature', 'Corners are not optional', 
+      'That is a Rorschach test', 'That is a continent', 'Unidentified',
+      'That is a jellyfish', 'A shape, technically', 'Nobody drew that on purpose']],
 ],
     circle: [
     [99.2, 'm-great',
@@ -1705,13 +1709,16 @@ const RATINGS = {
      ['Wonky, but through', 'It counts', 'Got away with that one', 'Round enough'],
      ['A bit wobbly', 'That is an oval', 'That is a potato',
       'A wheel that would not roll', 'Someone let go of the string',
-      'That is a rugby ball']],
+      'That is a rugby ball', 'That is an egg cup', 'Roundish, in places',
+      'The wheel has come off', 'That is a lemon', 'A circle from a distance']],
     [0, 'm-poor',
      ['A passing egg', 'Not pretty. Through.', 'Scraped it', 'Ugly, but it counts',
       'We will say no more about it', 'An egg, and a lucky one'],
      ['That is an egg', 'That is a scone', 'That is a bean', 'A very tired balloon',
       'Did you draw that on a bus?', 'That is a cloud', 'That is a crisp',
-      'Geometry would like a word', 'A circle drawn from memory', 'That is a kidney']],
+      'Geometry would like a word', 'A circle drawn from memory', 'That is a kidney', 'That is a pebble',
+      'That is a jacket potato', 'A circle, as remembered by a witness',
+      'That is an amoeba', 'Pi would like a word', 'That is a thumbprint']],
 ],
     triangle: [
     [99.2, 'm-great',
@@ -1737,14 +1744,18 @@ const RATINGS = {
     [50, 'm-meh',
      ['Wonky, but through', 'It counts', 'Got away with that one', 'Pointy enough'],
      ['A bit wobbly', 'That is a slice of pizza', 'That is a shark fin',
-      'Two good sides and an opinion', 'That is a bunting flag', 'That is a doorstop']],
+      'Two good sides and an opinion', 'That is a bunting flag', 'That is a doorstop', 
+      'That is a sail in a squall', 'Two sides and a rumour',
+      'That is a wedge of cheese', 'A triangle, allegedly']],
     [0, 'm-poor',
      ['A passing wedge', 'Not pretty. Through.', 'Scraped it', 'Ugly, but it counts',
       'We will say no more about it', 'A wedge, and a lucky one'],
      ['That is a hat', 'That is a sail', 'That is a tent in a gale', 'That is a crisp',
       'A triangle drawn from memory', 'That is a traffic cone, lying down',
       'Geometry would like a word', 'Two sides short of a triangle',
-      'That is a slice of toast', 'The Bermuda one, at a guess']],
+      'That is a slice of toast', 'The Bermuda one, at a guess', 
+      'That is a paper aeroplane', 'That is a nacho', 'Euclid has left the room',
+      'A triangle drawn during an earthquake']],
 ],
     square: [
     [99.2, 'm-great',
@@ -1770,14 +1781,17 @@ const RATINGS = {
     [50, 'm-meh',
      ['Wonky, but through', 'It counts', 'Got away with that one', 'Square enough'],
      ['A bit wobbly', 'That is a rectangle', 'That is an envelope',
-      'That is a ravioli', 'A box that has been sat on', 'That is a slice of bread']],
+      'That is a ravioli', 'A box that has been sat on', 'That is a slice of bread', 
+      'That is a trapezium', 'Four sides, no agreement', 'That is a pitta bread']],
     [0, 'm-poor',
      ['A passing box', 'Not pretty. Through.', 'Scraped it', 'Ugly, but it counts',
       'We will say no more about it', 'A box, and a lucky one'],
      ['That is a potato', 'That is a pillow', 'That is a scone', 'That is a beanbag',
       'A square drawn from memory', 'Four corners, loosely interpreted',
       'Geometry would like a word', 'That is a cushion', 'That is a bean',
-      'A box that gave up']],
+      'A box that gave up', 'That is a crumpet',
+      'Right angles are a suggestion, apparently', 'That is a sofa cushion',
+      'A square drawn on a train']],
 ],
 };
 const pick = a => a[(Math.random() * a.length) | 0];
