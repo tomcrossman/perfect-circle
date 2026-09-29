@@ -115,6 +115,33 @@ body {
     letter-spacing: .05em; opacity: .45; margin-top: 4px;
 }
 
+/* ---- the front door ---------------------------------------------------
+   Which exists for a reason beyond looking like a game. A phone browser will
+   not let a freshly loaded page make a sound on the first touch it receives -
+   the readout showed resume() being neither granted nor refused on that one,
+   and granted on every one after it. A button press is the unambiguous
+   interaction it wants, so pressing Play is what opens the audio, and by the
+   time anyone draws anything it is all running. */
+#intro {
+    position: absolute; inset: 0; z-index: 12; display: flex;
+    align-items: center; justify-content: center; padding: 22px;
+}
+#intro[hidden] { display: none; }
+#intro .inner {
+    position: relative; width: 100%; max-width: 320px; padding: 24px 22px 20px;
+    text-align: center; background: var(--panel);
+    border: 3.5px solid var(--ink); box-shadow: 4px 4px 0 var(--ink);
+    animation: sheetIn .4s cubic-bezier(.2, 1.3, .4, 1) both;
+}
+#intro h1 {
+    margin: 0; font-family: var(--font-display); font-weight: 400;
+    font-size: clamp(38px, 12vw, 50px); line-height: 1; letter-spacing: .02em;
+}
+#intro p {
+    margin: 10px 0 0; font-size: 14px; font-weight: 700; line-height: 1.5; opacity: .72;
+}
+#intro .btn { margin-top: 18px; }
+
 /* ============================================================
    THE VERDICT
    ============================================================ */
@@ -285,29 +312,33 @@ body {
    nor with each other, and a degree or two of tilt - which is the whole
    difference between a dialog and a doodle.
    ============================================================ */
-.plate, #mute, #clock, #card .inner, .btn, #ribbon {
+.plate, #mute, #clock, #card .inner, #intro .inner, .btn, #ribbon {
     border-radius: 22px 9px 19px 12px / 11px 20px 10px 23px;
 }
-.plate, #mute, #clock, #card .inner, .btn { position: relative; }
-.plate::before, #mute::before, #clock::before, #card .inner::before, .btn::before,
-.plate::after,  #mute::after,   #clock::after,  #card .inner::after,  .btn::after {
+.plate, #mute, #clock, #card .inner, #intro .inner, .btn { position: relative; }
+.plate::before, #mute::before, #clock::before, #card .inner::before, #intro .inner::before, .btn::before,
+.plate::after,  #mute::after,   #clock::after,  #card .inner::after,  #intro .inner::after, .btn::after {
     content: ''; position: absolute; pointer-events: none;
     border: 2.4px solid var(--ink);
 }
 /* the inset drifts round rather than sitting evenly, so the second line runs
    wide on one side and tight on the other, the way an overdrawn box does */
-.plate::after, #mute::after, #clock::after, #card .inner::after, .btn::after {
+.plate::after, #mute::after, #clock::after, #card .inner::after, #intro .inner::after, .btn::after {
     inset: -4px -1px -2px -3px; opacity: .34;
     border-radius: 10px 21px 11px 20px / 20px 11px 22px 10px;
     transform: rotate(1.15deg);
 }
-.plate::before, #mute::before, #clock::before, #card .inner::before, .btn::before {
+.plate::before, #mute::before, #clock::before, #card .inner::before, #intro .inner::before, .btn::before {
     inset: -1px -3px -4px -1px; opacity: .17;
     border-radius: 19px 13px 23px 9px / 13px 22px 9px 19px;
     transform: rotate(-.95deg);
 }
 #card .inner::after  { inset: -6px -2px -3px -5px; border-width: 3px; transform: rotate(-.7deg); }
 #card .inner::before { inset: -2px -5px -6px -2px; border-width: 2.6px; transform: rotate(1deg); }
+#intro .inner::after  { inset: -6px -2px -3px -5px; border-width: 3px; transform: rotate(-.7deg); }
+#intro .inner::before { inset: -2px -5px -6px -2px; border-width: 2.6px; transform: rotate(1deg); }
+#intro .inner { rotate: -.5deg; background-image: repeating-linear-gradient(48deg,
+    rgba(64, 92, 122, .05) 0 1.5px, transparent 1.5px 7px); }
 #ribbon { z-index: 3; }           /* not underneath the card's extra passes */
 /* a tilt each, so the row never lines up like a toolbar. These are the
    independent rotate property on purpose: transform is spoken for by the
@@ -401,6 +432,14 @@ body {
     <div id="tally"></div>
     <div id="prompt">Draw a circle around the dot</div>
 
+    <div id="intro">
+        <div class="inner">
+            <h1>Perfect Circle</h1>
+            <p>Draw the shape around the dot &mdash; one unbroken lap, before the clock runs out.</p>
+            <button class="btn" id="play">Play</button>
+        </div>
+    </div>
+
     <div id="card" hidden>
         <div class="inner">
             <div id="ribbon"></div>
@@ -419,7 +458,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v67';
+const APP_VERSION = 'v68';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -1691,7 +1730,7 @@ function timeUp() {
 let usingTouch = false;
 addEventListener('touchstart', e => {
     usingTouch = true;
-    if (e.target.closest('.btn, #mute')) return;
+    if (e.target.closest('.btn, #mute, #intro')) return;
     e.preventDefault();
     start(e.touches[0].clientX, e.touches[0].clientY);
 }, { passive: false });
@@ -1705,7 +1744,7 @@ addEventListener('touchcancel', end);
 // pointerdown arrives before touchstart, so a finger is waved off by its own type
 addEventListener('pointerdown', e => {
     if (e.pointerType === 'touch') { usingTouch = true; return; }
-    if (usingTouch || e.target.closest('.btn, #mute')) return;
+    if (usingTouch || e.target.closest('.btn, #mute, #intro')) return;
     start(e.clientX, e.clientY);
 });
 addEventListener('pointermove', e => {
@@ -2134,8 +2173,18 @@ function confetti(n) {
 }
 
 fit();
-startRound(1);
 frame();
+// nothing starts until Play is pressed, which is also what opens the audio
+promptEl.classList.add('gone');          // and nothing is said behind the intro
+const introEl = document.getElementById('intro');
+document.getElementById('play').addEventListener('click', e => {
+    e.stopPropagation();
+    startSession();
+    audioNow();
+    introEl.hidden = true;
+    startRound(1);
+});
+draw();
 
 /* offline, once it is served over http(s) */
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
