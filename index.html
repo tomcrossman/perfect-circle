@@ -457,7 +457,7 @@ body.waiting #hud { display: none; }
 </div>
 
 <script>
-const APP_VERSION = 'v78';
+const APP_VERSION = 'v79';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -976,9 +976,6 @@ const SHAPES = {
     egg:      { name: 'egg', lines: 'odd', jokes: [
         'Asked for an egg, and still no', 'Scrambled', 'That one is off',
         'Cracked', 'Free range, at best', 'You had one job'] },
-    glove:    { name: 'glove', lines: 'odd', jokes: [
-        'That is not a hand', 'Six fingers, at least', 'Mittens, then',
-        'The hand is right there', 'Even it is embarrassed', 'Wave goodbye'] },
     crown:    { name: 'crown', lines: 'odd', jokes: [
         'Uneasy lies the head', 'That is a saw', 'Abdicate',
         'More of a tiara', 'The jewels have gone', 'Off with it'] },
@@ -1005,7 +1002,7 @@ const RANDOM_POOL = ['circle', 'circle', 'circle', 'triangle', 'triangle', 'tria
                      'hexagon', 'hexagon', 'star', 'star',
                      'fish', 'snowman', 'bolt', 'heart', 'house', 'cat',
                      'diamond', 'poo', 'sword', 'shield',
-                     'egg', 'glove', 'crown', 'flower'];
+                     'egg', 'crown', 'flower'];
 function profile(a, key, phi) {
     const f = SHAPES[key];
     if (!f) return 1;
@@ -1076,18 +1073,6 @@ const daisy = (petals, reach, petal, core) => {
     }
     return rings;
 };
-/* A finger: circles marched out along a ray, which the bake takes the union
-   of. Four of them and a thumb do fit, despite the radius being one value per
-   angle, so long as they splay - it is fingers held parallel that share an
-   angle from the palm and merge into a lump, not fingers as such. */
-const finger = (deg, from, to, wid, n = 5) => {
-    const a = deg * Math.PI / 180, out = [];
-    for (let i = 0; i <= n; i++) {
-        const d = from + (to - from) * i / n;
-        out.push(arc(Math.cos(a) * d, Math.sin(a) * d, wid, 20));
-    }
-    return out;
-};
 const heartRing = n => {
     const out = [];
     for (let i = 0; i < n; i++) {
@@ -1117,14 +1102,6 @@ const OUTLINES = {
        join does not show. */
     egg: [[...oval(0, 0, .74, .84, 26, 0, Math.PI),
            ...oval(0, 0, .74, 1.16, 26, Math.PI, Math.PI * 2)]],
-    /* The game's own hand, held up, which is the best joke available: a palm,
-       a cuff, four fingers splayed across eighty degrees and a thumb out to
-       the side. The splay is what makes it possible at all - see finger(). */
-    glove: [arc(0, .17, .56, 44),
-            [[-.52, .13], [.52, .13], [.44, 1.06], [-.44, 1.06]],
-            ...finger(-120, .38, 1.04, .15), ...finger(-98, .38, 1.16, .15),
-            ...finger(-76, .38, 1.07, .15), ...finger(-55, .36, .94, .14),
-            ...finger(-171, .32, .94, .18)],
     /* A band with three points on it, and the dips between them doing the
        work - as deep as they can be and still be read. The bins a lap is
        filed into are two degrees wide, so a notch that plunges within one of

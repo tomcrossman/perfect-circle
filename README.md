@@ -75,19 +75,15 @@ distance from the middle is a single value at every angle. A regular polygon is
 a circle whose radius depends on the angle, and so is a fish.
 
 So the silly ones are authored as outlines - in overlapping parts where it
-helps, a palm and a cuff and five fingers for the glove - and baked once into a
+helps, four ovals stacked for the poo - and baked once into a
 table of radius by angle, which the scoring reads exactly as it works out a
 polygon. Where a ray crosses an outline more than once the farthest crossing
 wins, which is what keeps the table single-valued whatever was drawn. It also
 means a crescent is impossible, and always will be.
 
-What it does not mean is that a hand cannot have fingers. Four of them and a
-thumb fit perfectly well so long as they splay: it is fingers held parallel
-that share an angle from the palm and merge into a lump, not fingers as such.
-
 Circle, triangle, square, pentagon, hexagon and a five-pointed star; fish,
-snowman, heart, house, cat, diamond, egg, glove, crown, flower, poo, shield,
-and a sword and a lightning bolt that only turn up in later rounds. Each is
+snowman, heart, house, cat, diamond, egg, crown, flower, poo, shield, and a
+sword and a lightning bolt that only turn up in later rounds. Each is
 calibrated to score within a few points of the others at the same wobble, so
 one ladder covers all of them.
 
