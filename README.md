@@ -1,116 +1,147 @@
 # Perfect Circle
 
-Draw a circle around the dot in one stroke. The closer you hold the same
-distance from it all the way round, the higher you score.
+Draw the shape around the dot in one stroke, before the clock runs out. The
+closer you hold it to the shape you were asked for, the higher you score.
 
-A single self-contained `index.html` and a handful of voice clips, no build
-step, served from GitHub Pages. It is drawn on squared paper, because that is
-what you draw circles on.
+A single self-contained `index.html`, a service worker and four icons. No build
+step, no dependencies, served from GitHub Pages. It is drawn on squared paper,
+because that is what you draw circles on.
+
+## Getting in
+
+The game opens on a title page with a Play button, and the button is not
+decoration. Safari on iOS will not start an audio context on the first touch a
+page receives - it neither grants the request nor refuses it, so the first
+stroke of a fresh run came out silent and everything after it worked. A button
+you have to press means the first touch is spent before the game begins.
 
 ## The run
 
-One circle is a party trick, so the game is a run of them. Each round has a
-pass mark, and it climbs:
+One circle is a party trick, so the game is a run of them, and every round
+deals its own shape. Round one is always a circle, a square or a triangle -
+the rest of the pool is a surprise you have not earned yet.
 
-    need = 88 - 48 * 0.88 ^ (round - 1)
+Each round has a pass mark, and it climbs:
 
-Round 1 asks for 40%, round 8 for 68%, round 20 for 84%. Miss it and the run is over. How far you got is the score - the bar rises every
-round, so the round you reached is the difficulty you survived.
+    need = 95 - 59 * 0.93 ^ (round - 1)
+
+Round 1 asks for 36%, round 8 for 60%, round 20 for 80%. Miss it and the run is
+over. How far you got is the score - the bar rises every round, so the round
+you reached is the difficulty you survived.
 
 A clock runs on every round from the first. Drawing slowly is the one real
 cheat in this game - take long enough and anyone can trace a careful circle -
 so the time it gives you shrinks instead of the clock coming and going:
 
-    seconds = 1.6 + 3.4 * 0.92 ^ (round - 1)
+    seconds = (1.6 + 3.4 * 0.92 ^ (round - 1)) * the shape's pace
 
 Five seconds on round 1, three on round 10, two and a third on round 20, and
-never quite reaching a floor of 1.6. Running out costs you the attempt and
+never quite reaching a floor of 1.6. The pace is how far there is to travel
+round that shape against a circle of the same average radius: a sword is a long
+thin cross with half again as much edge to it, so the same clock was not a
+harder round, it was a shorter one. Running out costs you the attempt and
 nothing else; you simply cannot take your time over it.
 
 That leaves the twists to be about what you can see rather than how long you
 have. Every few rounds one more is unlocked, and from then on each round draws
-a random hand from what is available - one at a time at first, all three by
+a random hand from what is available - one at a time at first, three at once by
 round 12.
 
 | From | Twist | What it does |
 | --- | --- | --- |
 | 4 | Fading ink | Your line disappears behind you, so you cannot close the loop by eye |
+| 5 | Which way round | The round names a direction, and going the other way is not a lap |
 | 6 | Drifting dot | The dot wanders while you draw, and you are judged against where it was at the time |
 | 8 | Swarm | Decoy dots drift about. Nothing to hit - they just make a line hard to judge |
 
-## How a circle is scored
+## The shapes
+
+Nothing about the scoring cares whether a shape is regular, only that its
+distance from the middle is a single value at every angle. A regular polygon is
+a circle whose radius depends on the angle, and so is a fish.
+
+So the silly ones are authored as outlines - in overlapping parts where it
+helps, a palm and two stubs and a cuff for the glove - and baked once into a
+table of radius by angle, which the scoring reads exactly as it works out a
+polygon. Where a ray crosses an outline more than once the farthest crossing
+wins, which is what keeps the table single-valued whatever was drawn. It also
+means a crescent is impossible, and always will be.
+
+Circle, triangle, square, pentagon, hexagon and a five-pointed star; fish,
+snowman, heart, house, cat, diamond, egg, glove, crown, flower, poo, shield,
+and a sword and a lightning bolt that only turn up in later rounds. Each is
+calibrated to score within a few points of the others at the same wobble, so
+one ladder covers all of them.
+
+## How a lap is scored
 
 Every point of the stroke is filed by its angle from the dot, so a slow patch
 counts for no more than a fast one and any gap shows up on its own. The whole
 arc between two samples is filed, not just its ends - without that a small
-circle reads as full of holes, because the pen moves less than one bin between
-readings. Each point also remembers where the dot was at the time, so a
-drifting one is judged fairly.
+circle reads as full of holes, because the pen moves less than one of the 180
+bins between readings. Each point also remembers where the dot was at the time,
+so a drifting one is judged fairly.
 
-What is left is how much the radius wandered:
+Which way up you drew it is your business, so the rotation is fitted rather
+than demanded: one sector is swept coarsely and then closed in on, with ties
+going to the way it was demonstrated. What is left is how much the radius
+wandered from the shape that fits best:
 
-    score = 100 * (1 - stdev(radius) / mean(radius)) ^ 8
+    score = 100 * (1 - stdev(radius) / mean(radius)) ^ 3
 
-A careful human lands around 1.5% off, which the curve turns into the high
-eighties. The nineties are genuinely hard.
+A finger on glass is nothing like as steady as it feels. A respectable freehand
+circle wanders about 15% off its own average, which the curve turns into the
+high sixties; a careful one lands in the eighties, and the nineties still have
+to be earned.
 
 A stroke is turned down, with no penalty beyond the time it cost, if it stops
-short of a lap, breaks part way, crosses the dot, or is too small to judge.
+short of a lap, breaks part way, comes too close to the dot, or is too small to
+judge. The reason sits on the page for a moment and then clears itself, and the
+demonstration comes back, because by then you have forgotten what you were
+drawing.
+
+## Seventy
+
+A lap at 70% or better snaps onto the shape it was aiming for and holds there,
+with a shimmer over the top that climbs two octaves of the chord it lands on.
+It is the best thing that happens inside a round, and it is over before the
+next one starts.
 
 ## The verdict
 
-The mark you got looks back at you: an egg when you drew an egg, an oval, a
-near-circle, and a circle in sunglasses when you have earned it.
+The card only appears when the run has ended, because that is the only point
+at which there is anything to decide. It draws the shape you were trying for -
+wobblier the worse you did, upright and clean at the top of the range - and
+puts a face in it.
 
 The shape is what you drew; the face is whether it got you through, and those
-are not the same question - an egg over a low bar is a happy egg. So the shape
-comes from the score and the expression comes from the pass mark.
-
-Each band has its own pool of lines, and the bad ones have the most, because
-they are the funny ones. A line stays put whether you got through or not.
+are not the same question. Each band has its own pool of lines, and the bad
+ones have the most, because they are the funny ones. Down in the bottom bands
+the shape's own jokes join the generic ones, so a bad snowman gets told it is a
+peanut rather than that it is a blob.
 
 Closing the lap is answered straight away, before anything else has a say in
 it: a slap and a flinch of the whole screen for a miss, a sweep and a swell for
-a pass, with a burst thrown off the line either way.
+a pass, with a burst thrown off the line either way. Getting through shows the
+score for a beat and then starts the next round on its own; a tap cuts the beat
+short.
+
+## The noise
+
+All of it is synthesised - the hum, the stings, the jingles, the tick of the
+clock. There is not a recording in the project.
 
 While the pen is down a note is held, and its pitch is driven by how far round
-the lap you have got, so closing the circle is something you hear as well as
-see. It is synthesised rather than recorded, which is the only way it could
-follow you like that - and it means the whole game is still one HTML file.
+the lap you have got, so closing the shape is something you hear as well as
+see. A recording could never follow you like that, and it means the whole game
+is still one HTML file.
 
-Getting through a round shows the score for a beat and then starts the next one
-on its own; a tap cuts the beat short. The card is kept for the end of a run,
-where there is actually something to decide.
+A run ends on a tune rather than a noise: it climbs and lands on the chord it
+has been heading for, or it loses heart over four notes and slides off the
+bottom of its own bass line.
 
-## The verdict
+## Releasing
 
-The mark you got looks back at you: an egg when you drew an egg, an oval, a
-near-circle, and a circle in sunglasses when you have earned it.
-
-The shape is what you drew; the face is whether it got you through, and those
-are not the same question - an egg over a low bar is a happy egg. So the shape
-comes from the score and the expression comes from the pass mark.
-
-Each band has its own pool of lines, and the bad ones have the most, because
-they are the funny ones. A line stays put whether you got through or not.
-
-Closing the lap is answered straight away, before the card has any say in it:
-a slap and a flinch of the whole screen for a miss, a sweep and a swell for a
-pass, with a burst thrown off the line either way.
-
-Something is doing the drawing, and it is different every round - a pencil, a
-biro, a crayon, a marker, a quill, a carrot. The sprite is drawn in pen space
-and tipped over, so the point lands exactly where your finger is and the hand
-trails away down and right, which is where a right hander's hand already is and
-out of the way of the line.
-
-While the pen is down you hear an "oooooooh" that runs until you let go.
-Getting through a round is met with one of five cheers; missing the mark with
-one of eight groans. Each is picked at random from its set, so the same take
-does not come back every round.
-
-All three are MP4 containers with a single AAC track. They are named `.mp4`
-rather than `.m4a` because that is what they are, and because the preview host
-will not serve `.m4a`. iOS will only play an element a gesture has touched, and
-the cheers fire on a timer after the pen has gone, so they are woken silently
-on the first pen-down while a finger is still on the glass.
+`APP_VERSION` in `index.html` and `CACHE` in `sw.js` have to match, or the
+service worker serves the old game forever. `./check-version.sh` says so before
+you push, and it is worth running every time.

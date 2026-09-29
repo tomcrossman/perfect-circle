@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Perfect Circle</title>
 <link rel="manifest" href="manifest.webmanifest">
+<!-- Safari ignores the manifest's icons when a page is added to the home
+     screen, and with no icon named here it helps itself to whatever sits at
+     the root of the domain - which is another of these games entirely. -->
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
 <meta name="theme-color" content="#FBF7EC">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Perfect Circle">
@@ -303,12 +308,6 @@ body.waiting #hud { display: none; }
 #card.record .fh { display: block; }
 #card.record .fx { display: none; }
 
-#summary {
-    display: none; margin: 11px 0 0; color: var(--gold);
-    font-family: var(--font-display); font-size: 19px; letter-spacing: .03em;
-}
-#card.failed #summary { display: block; }
-#summary .ico { width: 12px; height: 12px; vertical-align: -1px; margin-right: 3px; fill: var(--gold); }
 #card.failed #note { display: none; }
 
 /* ============================================================
@@ -450,8 +449,6 @@ body.waiting #hud { display: none; }
             <p id="rating">Wonky</p>
             <p id="pass"></p>
             <p id="note"></p>
-            <div id="summary"><svg class="ico"><use href="#i-cup"/></svg>Best: Round <span
-                id="card-best">0</span></div>
             <button class="btn" id="again">Round 2</button>
         </div>
     </div>
@@ -460,7 +457,7 @@ body.waiting #hud { display: none; }
 </div>
 
 <script>
-const APP_VERSION = 'v74';
+const APP_VERSION = 'v75';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -609,11 +606,22 @@ const jingleLose = () => safely(t => {
     hiss(t, { hp: 120, lp: 800, dur: .4, vol: .1, at: 2.55 });
 });
 const buzz = () => safely(t => tone(t, { freq: 210, to: 110, dur: .22, type: 'sawtooth', vol: .16 }));
-// the shimmer that goes with the line snapping onto its shape
+/* The shimmer that goes with the line snapping onto its shape. Seventy is the
+   best thing that happens in a round, so it is not three notes and a hiss any
+   more: it runs up two octaves of the same chord and opens out on the one it
+   was climbing towards. It has to be over before the card lands with its own
+   tune 440ms later, which is what keeps the run brisk and the tail short. */
 const sparkle = () => safely(t => {
-    [1568, 2093, 2637].forEach((f, i) =>
-        tone(t, { freq: f, dur: .5, type: 'triangle', vol: .08, at: .12 + i * .05 }));
-    hiss(t, { hp: 7000, dur: .45, vol: .1, at: .12 });
+    [1047, 1319, 1568, 2093, 2637, 3136].forEach((f, i) => {
+        const at = .07 + i * .042;
+        tone(t, { freq: f, dur: .34, type: 'triangle', vol: .085, at });
+        tone(t, { freq: f * 2, dur: .22, type: 'sine', vol: .025, at });
+    });
+    [523, 659, 784, 1175].forEach(f =>                  // and the chord it was after
+        tone(t, { freq: f, dur: .60, type: 'triangle', vol: .055, at: .30 }));
+    tone(t, { freq: 262, dur: .62, type: 'sine', vol: .07, at: .30 });
+    hiss(t, { hp: 6000, dur: .34, vol: .11, at: .08 });
+    hiss(t, { hp: 9500, dur: .34, vol: .07, at: .30 });
 });
 const tick = () => safely(t => tone(t, { freq: 1200, dur: .04, type: 'square', vol: .1 }));
 
@@ -980,6 +988,18 @@ const SHAPES = {
     sword:    { name: 'sword', from: 6, lines: 'odd', jokes: [
         'That is a butter knife', 'Excalibur it is not', 'That is a cross, surely',
         'Blunt', 'You would stop nobody with that', 'More of a letter opener', 'That is a crucifix', 'A weapon of last resort', 'That is a dagger, and a blunt one', 'More of a spatula'] },
+    egg:      { name: 'egg', lines: 'odd', jokes: [
+        'Asked for an egg, and still no', 'Scrambled', 'That one is off',
+        'Cracked', 'Free range, at best', 'You had one job'] },
+    glove:    { name: 'glove', lines: 'odd', jokes: [
+        'That is not a hand', 'Six fingers, at least', 'Mittens, then',
+        'The hand is right there', 'Even it is embarrassed', 'Wave goodbye'] },
+    crown:    { name: 'crown', lines: 'odd', jokes: [
+        'Uneasy lies the head', 'That is a saw', 'Abdicate',
+        'More of a tiara', 'The jewels have gone', 'Off with it'] },
+    flower:   { name: 'flower', lines: 'odd', jokes: [
+        'That is a weed', 'Deadheaded', 'It needs watering',
+        'That is a cabbage', 'Wilting', 'Not in bloom'] },
     shield:   { name: 'shield', lines: 'odd', jokes: [
         'That would stop nothing', 'The arrows are getting through',
         'That is a plectrum', 'More of a tea tray', 'That is a badge',
@@ -999,7 +1019,8 @@ const RANDOM_POOL = ['circle', 'circle', 'circle', 'triangle', 'triangle', 'tria
                      'square', 'square', 'square', 'pentagon', 'pentagon',
                      'hexagon', 'hexagon', 'star', 'star',
                      'fish', 'snowman', 'bolt', 'heart', 'house', 'cat',
-                     'diamond', 'poo', 'sword', 'shield'];
+                     'diamond', 'poo', 'sword', 'shield',
+                     'egg', 'glove', 'crown', 'flower'];
 function profile(a, key, phi) {
     const f = SHAPES[key];
     if (!f) return 1;
@@ -1059,6 +1080,17 @@ const oval = (cx, cy, rx, ry, n, from = 0, to = Math.PI * 2) => {
     }
     return out;
 };
+/* Petals round a middle, as rings that the bake takes the union of. A wave
+   riding on a radius would be simpler, but a wave deep enough to read as a
+   flower comes to a point at every petal and draws a starfish. */
+const daisy = (petals, reach, petal, core) => {
+    const rings = [arc(0, 0, core, 40)];
+    for (let i = 0; i < petals; i++) {
+        const t = i / petals * Math.PI * 2 - Math.PI / 2;
+        rings.push(arc(Math.cos(t) * reach, Math.sin(t) * reach, petal, 30));
+    }
+    return rings;
+};
 const heartRing = n => {
     const out = [];
     for (let i = 0; i < n; i++) {
@@ -1083,6 +1115,26 @@ const OUTLINES = {
     cat: [arc(0, .1, .8, 44), [[-.72, -.36], [-.78, -1], [-.18, -.62]],
           [[.72, -.36], [.78, -1], [.18, -.62]]],
     // three tiers and a peak, each overhanging the one above it
+    /* Rounder below than above, which is the whole of an egg. Two half ovals
+       sharing a width, so they meet with the same vertical tangent and the
+       join does not show. */
+    egg: [[...oval(0, 0, .74, .84, 26, 0, Math.PI),
+           ...oval(0, 0, .74, 1.16, 26, Math.PI, Math.PI * 2)]],
+    /* The game's own hand, pointing, which is the best joke available. Four
+       fingers cannot be had - the radius is one value per angle, so they
+       would merge into a single lump - so it is a mitt with a thumb out and
+       one finger up: a palm, two stubs and a cuff, taken as a union. */
+    glove: [arc(0, .30, .78, 40), oval(.06, -.80, .30, .56, 30),
+            oval(-.74, -.06, .42, .30, 26),
+            [[-.74, .42], [.74, .42], [.66, 1.12], [-.66, 1.12]]],
+    /* A band with three points on it, and the dips between them doing the
+       work - as deep as they can be and still be read. The bins a lap is
+       filed into are two degrees wide, so a notch that plunges within one of
+       them averages away, and a machine perfect crown was scoring in the
+       eighties for a fault of the paper rather than of the hand. */
+    crown: [[[-1.0, .62], [1.0, .62], [1.0, -.10], [.80, -.88], [.42, -.46],
+             [0, -.98], [-.42, -.46], [-.80, -.88], [-1.0, -.10]]],
+    flower: daisy(5, .70, .40, .46),
     poo: [oval(0, .66, 1.05, .46, 40), oval(-.06, .10, .72, .40, 34),
           oval(.10, -.42, .46, .34, 30), oval(0, -.80, .26, .24, 24)],
     // a heater shield: a peak in the middle of the top, straight flanks, and
@@ -1110,7 +1162,12 @@ function bakeOutline(parts) {
                 if (!den) continue;
                 const u = (ex * q[1] - ey * q[0]) / den;      // how far along the ray
                 const v = (cx * q[1] - cy * q[0]) / den;      // how far along the edge
-                if (u > far && v >= 0 && v <= 1) far = u;
+                // a hair either side of the edge counts: where a ray leaves
+                // through a corner - which every ray does when the outline is
+                // sampled at a multiple of the table - rounding can put it just
+                // outside both of the edges meeting there, and the angle bakes
+                // to nothing at all
+                if (u > far && v >= -1e-9 && v <= 1 + 1e-9) far = u;
             }
         }
         t[i] = far;
@@ -1988,13 +2045,14 @@ const RECORD_LINES = ['Your best yet', 'A new record', 'Further than ever before
 
 // what this round wants, in words - said at the start of it, and said again
 // once a rejected attempt has been cleared off the page
+const anA = w => /^[aeiou]/i.test(w) ? 'an' : 'a';    // an egg, but a crown
 function sayWhatToDraw(n) {
     const what = SHAPES[run.form].name;
     promptEl.textContent = run.way
         ? `${wayName(run.way)[0].toUpperCase()}${wayName(run.way).slice(1)} ${what}`
         // "another" only when it really is another one: every round deals its
         // own shape now, so most of the time this is the first you have seen
-        : run.repeat ? `Another ${what} round the dot` : `Draw a ${what} around the dot`;
+        : run.repeat ? `Another ${what} round the dot` : `Draw ${anA(what)} ${what} around the dot`;
     promptEl.classList.remove('gone');
 }
 
@@ -2085,12 +2143,11 @@ function settle(score) {
     document.getElementById('pass').innerHTML = passed
         ? `<span class="ok">Through</span> &middot; needed ${pc(need)}%`
         : `${pc(score)}%, needed ${pc(need)}%`;
-    // On a best the card already carries the ribbon, the rounds and the record
-    // line; a fifth line telling you it was a bunting flag only deflates it.
-    // The joke is the headline on an ordinary run over, which is its place.
+    // On a best the card already carries the ribbon and the record line; one
+    // more telling you it was a bunting flag only deflates it. The joke is the
+    // headline on an ordinary run over, which is its place.
     document.getElementById('note').textContent =
         `The dashed line is the ${SHAPES[run.form].name} you were aiming for.`;
-    document.getElementById('card-best').textContent = fmt(best);
     showRound(run.round);
     document.getElementById('again').textContent = passed ? `Round ${run.round + 1}` : 'Again!';
     if (!passed) run.live = false;
