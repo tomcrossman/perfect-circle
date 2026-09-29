@@ -45,7 +45,9 @@ nothing else; you simply cannot take your time over it.
 That leaves the twists to be about what you can see rather than how long you
 have. Every few rounds one more is unlocked, and from then on each round draws
 a random hand from what is available - one at a time at first, three at once by
-round 12.
+round 12. There were four: a swarm of decoy dots drifting about the page was
+the fourth, and it went because it read as something to aim at when it was
+nothing of the kind.
 
 | From | Twist | What it does |
 | --- | --- | --- |
@@ -53,7 +55,6 @@ round 12.
 | 5 | Which way round | The round names a direction, and going the other way is not a lap |
 | 6 | Drifting dot | The dot wanders while you draw, and you are judged against where it was at the time |
 | 7 | Blind | Nothing appears on the paper at all until you let go |
-| 8 | Swarm | Decoy dots drift about. Nothing to hit - they just make a line hard to judge |
 
 The blind one lands on round 7 because that is the last round that deals a
 single twist, so it gets a page to itself rather than arriving on top of
@@ -74,11 +75,15 @@ distance from the middle is a single value at every angle. A regular polygon is
 a circle whose radius depends on the angle, and so is a fish.
 
 So the silly ones are authored as outlines - in overlapping parts where it
-helps, a palm and two stubs and a cuff for the glove - and baked once into a
+helps, a palm and a cuff and five fingers for the glove - and baked once into a
 table of radius by angle, which the scoring reads exactly as it works out a
 polygon. Where a ray crosses an outline more than once the farthest crossing
 wins, which is what keeps the table single-valued whatever was drawn. It also
 means a crescent is impossible, and always will be.
+
+What it does not mean is that a hand cannot have fingers. Four of them and a
+thumb fit perfectly well so long as they splay: it is fingers held parallel
+that share an angle from the palm and merge into a lump, not fingers as such.
 
 Circle, triangle, square, pentagon, hexagon and a five-pointed star; fish,
 snowman, heart, house, cat, diamond, egg, glove, crown, flower, poo, shield,
