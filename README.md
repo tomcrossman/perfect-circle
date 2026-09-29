@@ -47,7 +47,14 @@ short of a lap, breaks part way, crosses the dot, or is too small to judge.
 
 ## The verdict
 
-The mark you got looks back at you: a cracked egg when you drew an egg, an
-unimpressed oval, a pleased near-circle, and a circle in sunglasses when you
-have earned it. Each band has its own pool of lines, and the bad ones have the
-most, because they are the funny ones.
+The mark you got looks back at you: an egg when you drew an egg, an oval, a
+near-circle, and a circle in sunglasses when you have earned it.
+
+The shape is what you drew; the face is whether it got you through, and those
+are not the same question - an egg over a low bar is a happy egg. So the shape
+comes from the score and the expression comes from the pass mark.
+
+Each band has its own pool of lines, and the bad ones have the most, because
+they are the funny ones. A line stays put whether you got through or not.
+
+While the pen is down you hear an "oooooooh" that runs until you let go.
