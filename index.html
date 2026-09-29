@@ -187,11 +187,6 @@ body {
     margin: 2px 0 0; font-family: var(--font-display); font-size: 26px; letter-spacing: .03em;
 }
 #note { margin: 6px 0 0; font-size: 12px; font-weight: 700; line-height: 1.45; opacity: .7; }
-#bestline {
-    font-family: var(--font-display); font-size: 22px; letter-spacing: .02em;
-    color: var(--gold); margin: 9px 0 0;
-}
-#bestline .ico { width: 15px; height: 15px; vertical-align: -2px; margin-right: 3px; fill: var(--gold); }
 .btn {
     margin-top: 12px; width: 100%;
     font-family: var(--font-display); font-size: 24px; font-weight: 400; letter-spacing: .03em;
@@ -280,15 +275,17 @@ body {
 #pass .no { color: var(--danger); }
 #card.failed #score { color: var(--danger); }
 #card.failed .inner { border-color: var(--danger); }
-#summary { display: none; margin: 10px 0 0; }
-#card.failed #summary { display: block; }
-#card.failed #note { display: none; }
-.tot {
-    display: flex; justify-content: center; gap: 18px; margin-top: 2px;
-    font-family: var(--font-display); font-size: 27px; letter-spacing: .02em;
+#summary {
+    display: none; margin: 11px 0 0;
+    font-family: var(--font-display); font-size: 25px; letter-spacing: .02em;
 }
-.tot span { display: block; font-family: var(--font); font-size: 10px; font-weight: 900;
-            letter-spacing: .07em; text-transform: uppercase; opacity: .5; }
+#card.failed #summary { display: block; }
+#summary em {
+    font-style: normal; color: var(--gold);
+    margin-left: 9px; padding-left: 9px; border-left: 2.5px solid rgba(36,31,46,.18);
+}
+#summary .ico { width: 15px; height: 15px; vertical-align: -2px; margin-right: 3px; fill: var(--gold); }
+#card.failed #note { display: none; }
 
 /* ============================================================
    DRAWN, NOT PRINTED
@@ -395,12 +392,8 @@ body {
             <p id="rating">Wonky</p>
             <p id="pass"></p>
             <p id="note"></p>
-            <div id="summary">
-                <div class="tot">
-                    <div><span>Rounds</span><b id="sum-rounds">0</b></div>
-                </div>
-                <div id="bestline"><svg class="ico"><use href="#i-cup"/></svg>Best <span id="card-best">0</span> rounds</div>
-            </div>
+            <div id="summary"><b id="sum-rounds">0</b> rounds<em><svg
+                class="ico"><use href="#i-cup"/></svg>best <span id="card-best">0</span></em></div>
             <button class="btn" id="again">Round 2</button>
         </div>
     </div>
@@ -409,7 +402,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v34';
+const APP_VERSION = 'v35';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -488,21 +481,39 @@ const sting = up => safely(t => {
         hiss(t, { hp: 200, lp: 1400, dur: .22, vol: .18, at: .01 });
     }
 });
-// How a run ends. Up the scale into the chord it was always heading for, or
-// the trombone, which is three notes losing heart and a fourth giving up.
+/* How a run ends: a tune rather than a noise. The melody climbs and lands on
+   the chord it has been heading for all along, or it loses heart over four
+   notes and slides off the bottom of its own bass line. Each entry is
+   [when, note, length] in seconds from the moment the card arrives. */
 const jingleWin = () => safely(t => {
-    [523, 659, 784, 1046].forEach((f, i) => tone(t, { freq: f, dur: .17, vol: .2, at: i * .1 }));
-    [784, 1046, 1318].forEach(f => tone(t, { freq: f, dur: .85, type: 'triangle', vol: .17, at: .42 }));
-    [392, 523].forEach(f => tone(t, { freq: f, dur: .9, type: 'sine', vol: .14, at: .42 }));
-    tone(t, { freq: 2093, dur: .5, type: 'square', vol: .05, at: .5 });
-    hiss(t, { hp: 6000, dur: .45, vol: .12, at: .44 });
+    const M = [[0, 392, .16], [.16, 523, .16], [.32, 659, .16], [.48, 784, .30],
+               [.80, 880, .16], [.96, 784, .16], [1.12, 659, .16], [1.28, 698, .16],
+               [1.44, 880, .16], [1.60, 784, .16], [1.76, 659, .16], [1.92, 1046, .80]];
+    M.forEach(([at, freq, dur]) => tone(t, { freq, dur, type: 'triangle', vol: .17, at }));
+    // the same line an octave down and much quieter, which thickens it
+    M.forEach(([at, freq, dur]) => tone(t, { freq: freq / 2, dur, type: 'sine', vol: .07, at }));
+    [[0, 131], [.48, 196], [.96, 175], [1.44, 196]].forEach(([at, freq]) =>
+        tone(t, { freq, dur: .46, type: 'sine', vol: .12, at }));
+    [262, 330, 392, 523].forEach(freq =>              // and the chord it was after
+        tone(t, { freq, dur: 1, type: 'triangle', vol: .08, at: 1.92 }));
+    tone(t, { freq: 131, dur: 1.05, type: 'sine', vol: .13, at: 1.92 });
+    tone(t, { freq: 2093, dur: .5, type: 'square', vol: .04, at: 2 });
+    hiss(t, { hp: 6000, dur: .5, vol: .1, at: 1.94 });
 });
 const jingleLose = () => safely(t => {
-    [330, 294, 262].forEach((f, i) =>
-        tone(t, { freq: f, to: f * .94, dur: .25, type: 'sawtooth', vol: .15, at: i * .19 }));
-    tone(t, { freq: 262, to: 116, dur: .78, type: 'sawtooth', vol: .18, at: .58 });
-    tone(t, { freq: 131, to: 58, dur: .82, type: 'triangle', vol: .12, at: .58 });
-    hiss(t, { hp: 140, lp: 900, dur: .34, vol: .1, at: .6 });
+    // four notes losing heart - each one bending flat as it goes - and then one
+    // that gives up entirely and slides most of an octave into the floor
+    const M = [[0, 330, 311, .30], [.34, 294, 277, .30], [.68, 262, 247, .30],
+               [1.02, 247, 233, .34], [1.40, 220, 196, .50]];
+    M.forEach(([at, freq, to, dur]) => {
+        tone(t, { freq, to, dur, type: 'sawtooth', vol: .13, at });
+        tone(t, { freq: freq * 1.007, to: to * 1.007, dur, type: 'sawtooth', vol: .06, at });
+    });
+    [[0, 110], [.68, 98], [1.40, 110]].forEach(([at, freq]) =>
+        tone(t, { freq, dur: .62, type: 'triangle', vol: .11, at }));
+    tone(t, { freq: 208, to: 92, dur: 1.05, type: 'sawtooth', vol: .16, at: 1.96 });
+    tone(t, { freq: 104, to: 46, dur: 1.10, type: 'triangle', vol: .11, at: 1.96 });
+    hiss(t, { hp: 120, lp: 800, dur: .4, vol: .1, at: 2.55 });
 });
 const buzz = () => safely(t => tone(t, { freq: 210, to: 110, dur: .22, type: 'sawtooth', vol: .16 }));
 const tick = () => safely(t => tone(t, { freq: 1200, dur: .04, type: 'square', vol: .1 }));
@@ -583,6 +594,35 @@ muteBtn.addEventListener('click', e => {
     if (soundOn) chime(70); else humStop();
 });
 applySound();
+
+/* ---- getting permission to make a sound at all ------------------------
+   iOS will not let a page make a sound until the person has touched it, and a
+   context built before that starts suspended with its clock frozen at zero -
+   so everything the first stroke schedules lands in the past and is never
+   heard. That is why the first go was silent until you tapped once more.
+
+   So take the very first touch anywhere on the page, in the capture phase so
+   this runs before the handler that starts a stroke, build the context there
+   and push one silent sample through it, which is what actually unlocks it. */
+let unlocked = false;
+function unlockAudio() {
+    try {
+        audioNow();                   // builds it, and resumes it if suspended
+        if (unlocked) return;
+        unlocked = true;
+        const b = audioCtx.createBufferSource();
+        b.buffer = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
+        b.connect(master);
+        b.start(0);
+    } catch (e) { /* no audio here, never mind */ }
+}
+for (const ev of ['touchstart', 'pointerdown', 'mousedown', 'keydown'])
+    addEventListener(ev, unlockAudio, { capture: true, passive: true });
+// coming back from the lock screen or another app leaves it suspended again
+addEventListener('visibilitychange', () => {
+    if (!document.hidden && audioCtx && audioCtx.state === 'suspended')
+        audioCtx.resume().catch(() => {});
+});
 
 /* ============================================================
    THE PAPER
