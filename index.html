@@ -469,7 +469,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v48';
+const APP_VERSION = 'v50';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -1154,17 +1154,24 @@ function drawDemo(ms, cx, cy) {
     const R = Math.min(W, H) * .27, STEPS = 260;
     let hx = cx, hy = cy - R;
     ctx.save();
-    ctx.globalAlpha = .28 * fade;
-    ctx.strokeStyle = '#241F2E';
+    // The line is translucent, so anything that paints the same pixel twice
+    // shows up as a darker blob on it. A finished lap used to end on the point
+    // it started from, stacking two round end caps at the top of the shape, so
+    // it is closed properly instead - and the alpha lives in the colour rather
+    // than on the context, so one stroke of one path composites once.
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = `rgba(36, 31, 46, ${(.28 * fade).toFixed(3)})`;
     ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     ctx.beginPath();
     const dir = run.way || 1;         // show them the way round they were asked for
-    for (let i = 0; i <= STEPS * e; i++) {
+    const shut = e >= 1, last = shut ? STEPS - 1 : Math.floor(STEPS * e);
+    for (let i = 0; i <= last; i++) {
         const a = -Math.PI / 2 + dir * (i / STEPS) * Math.PI * 2;
         const rr = R * profile(a, run.form, phi);
         hx = cx + Math.cos(a) * rr; hy = cy + Math.sin(a) * rr;
         i ? ctx.lineTo(hx, hy) : ctx.moveTo(hx, hy);
     }
+    if (shut) ctx.closePath();
     ctx.stroke();
     if (e < 1 && HAND.complete && HAND.naturalWidth) {
         const k = HAND_SCALE * .88;
@@ -1279,23 +1286,42 @@ function draw() {
         ctx.lineWidth = 7;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
+        ctx.globalAlpha = 1;
+        /* Every segment used to be stroked on its own. At full opacity that is
+           invisible, but the moment the ink fades each round cap is painted
+           over its neighbour and the line comes out scalloped and blotchy. So
+           the colour and the fade are quantised - finely enough that nothing
+           banding shows - and a run of segments that agree on both is stroked
+           as one path, which composites once. It is also a great many fewer
+           calls than one per sample. */
+        let key = null, open = false;
+        const flush = () => { if (open) { ctx.stroke(); open = false; } };
         for (let i = 1; i < pts.length; i++) {
             const a = pts[i - 1], b = pts[i];
             let alpha = 1;
             if (fading) {
                 alpha = 1 - (ms - b[4]) / FADE_MS;
-                if (alpha <= 0) continue;
+                if (alpha <= 0) { flush(); key = null; continue; }
             }
             const r = Math.hypot(b[0] - b[2], b[1] - b[3]);
             const want = fit && fit.R
                 ? fit.R * profile(Math.atan2(b[1] - b[3], b[0] - b[2]), fit.form, fit.phi) : mean;
-            ctx.globalAlpha = alpha;
-            ctx.strokeStyle = mean > 0 ? shade(Math.abs(r - want) / mean) : '#3fa45b';
-            ctx.beginPath();
-            ctx.moveTo(a[0], a[1]);
+            const off = mean > 0 ? Math.round(Math.abs(r - want) / mean * 240) / 240 : 0;
+            const step = Math.round(alpha * 16) / 16;
+            const k = off + '|' + step;
+            if (k !== key) {
+                flush();
+                key = k;
+                const col = mean > 0 ? shade(off) : 'rgb(63,164,91)';
+                ctx.strokeStyle = step >= 1 ? col
+                    : col.replace('rgb(', 'rgba(').replace(')', `,${step})`);
+                ctx.beginPath();
+                ctx.moveTo(a[0], a[1]);
+                open = true;
+            }
             ctx.lineTo(b[0], b[1]);
-            ctx.stroke();
         }
+        flush();
         ctx.globalAlpha = 1;
     }
 
@@ -1342,6 +1368,8 @@ function liftView(floor) {
 let lastTick = 0;
 function frame() {
     raf = requestAnimationFrame(frame);
+    if (rejected && run.live && !drawing && card.hidden
+        && (now() - idleT0) / 1000 > IDLE_WAIT) forgetAttempt();
     if (run.live && drawing) {
         const left = run.limit - (now() - penT0) / 1000;
         clockFill.style.width = `${Math.max(0, left / run.limit) * 100}%`;
@@ -1380,7 +1408,7 @@ function start(x, y) {
     verdict = null;
     penT0 = now();
     pts = [sample(x, y)];
-    liveJ = null;
+    liveJ = null; rejected = false;
     taught = true;                  // they have got the idea; stop showing them
     promptEl.classList.add('gone');
     bannerEl.classList.remove('go');
@@ -1412,7 +1440,7 @@ function end() {
     draw();
     if (verdict.ok) settle(verdict.score);
     else { buzz(); armClock(); promptEl.textContent = verdict.why;
-           promptEl.classList.remove('gone'); }
+           promptEl.classList.remove('gone'); rejected = true; idleT0 = now(); }
 }
 function timeUp() {
     if (!drawing) return;
@@ -1425,7 +1453,7 @@ function timeUp() {
     draw();
     buzz();
     armClock();
-    idleT0 = now();
+    rejected = true; idleT0 = now();
     promptEl.textContent = 'Out of time - faster next go.';
     promptEl.classList.remove('gone');
 }
@@ -1675,7 +1703,33 @@ const RECORD_LINES = ['Your best yet', 'A new record', 'Further than ever before
     'That is the one to beat', 'Nobody has got further. Including you.',
     'A personal best', 'New high-water mark'];
 
+// what this round wants, in words - said at the start of it, and said again
+// once a rejected attempt has been cleared off the page
+function sayWhatToDraw(n) {
+    const what = SHAPES[run.form].name;
+    promptEl.textContent = run.way
+        ? `${wayName(run.way)[0].toUpperCase()}${wayName(run.way).slice(1)} ${what}`
+        : n === 1 ? `Draw a ${what} around the dot` : `Another ${what} round the dot`;
+    promptEl.classList.remove('gone');
+}
+
+/* A rejected attempt - a gap, a short lap, one drawn over the dot - leaves its
+   reason on screen and its line on the page, and the line is what stops the
+   demonstration coming back, since that only offers itself on a blank one. So
+   after the same pause it clears both and starts the lap again: the reason has
+   been read by then, and what you are meant to be drawing is the thing worth
+   having on screen. */
+let rejected = false;
+function forgetAttempt() {
+    rejected = false;
+    pts = []; verdict = null; liveJ = null;
+    sayWhatToDraw(run.round);
+    idleT0 = now() - IDLE_WAIT * 1000;      // so the lap starts at once
+    draw();
+}
+
 function startRound(n) {
+    rejected = false;
     burst = null;
     run.tally = false;
     clearTimeout(tallyT);
@@ -1707,11 +1761,7 @@ function startRound(n) {
     bannerEl.classList.remove('go');
     void bannerEl.offsetWidth;
     bannerEl.classList.add('go');
-    const what = SHAPES[run.form].name;
-    promptEl.textContent = run.way
-        ? `${wayName(run.way)[0].toUpperCase()}${wayName(run.way).slice(1)} ${what}`
-        : n === 1 ? `Draw a ${what} around the dot` : `Another ${what} round the dot`;
-    promptEl.classList.remove('gone');
+    sayWhatToDraw(n);
     draw();
 }
 
