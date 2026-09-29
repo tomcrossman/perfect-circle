@@ -418,7 +418,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v36';
+const APP_VERSION = 'v37';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -739,57 +739,19 @@ function swarmAt(ms) {
 }
 
 /* ---- the hand ---------------------------------------------------------
-   Drawn in finger space - the fingertip at the origin, the hand running away
-   along +x - and tipped 42 degrees, so the point of contact lands exactly on
-   the line and the hand trails off down and right. That is where a right
-   hander's hand already is, and it keeps it clear of what you are drawing.
+   The glove, as supplied: drawn pointing straight up with the cuff at the
+   bottom. The fingertip sits at (138.3, 69) in its own coordinates, measured
+   by rasterising it and taking the mean x of the topmost opaque row, and the
+   viewBox is trimmed to the ink. Everything below follows from that.
 
-   No pen: the finger is the pen. */
-const GLOVE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 223 217"><g transform="translate(56.6 59.2) rotate(42)"><path d="M 1.0 15.0 A 15 15 0 0 1 -1.0 -15.0 L 58.9 -21.0 A 17 17 0 0 1 61.1 13.0 Z" fill="#FFFFFF" stroke="#241F2E" stroke-width="4.2" stroke-linejoin="round"/><path d="M 102.5 -22.8 A 16 16 0 0 1 73.5 -9.2 L 60.2 -44.5 A 13 13 0 0 1 83.8 -55.5 Z" fill="#FFFFFF" stroke="#241F2E" stroke-width="4.2" stroke-linejoin="round"/><path d="M 130 -32 C 146 -36, 162 -30, 164 -12 L 164 28 C 162 46, 146 52, 130 48 Z" fill="#FFFFFF" stroke="#241F2E" stroke-width="4.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M 58 -26 C 76 -32, 104 -34, 122 -30 C 140 -26, 148 -10, 146 8 C 144 28, 132 44, 112 50 C 94 55, 74 54, 64 46 C 54 38, 50 22, 52 4 C 53 -10, 54 -22, 58 -26 Z" fill="#FFFFFF" stroke="#241F2E" stroke-width="4.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M 62 30 C 74 40, 92 46, 110 44" fill="#FFFFFF" stroke="#241F2E" stroke-width="0" stroke-linejoin="round" stroke-linecap="round"/><path d="M 66 26 C 70 38, 82 46, 96 48" fill="none" stroke="#241F2E" stroke-width="3.4" stroke-linecap="round"/><path d="M 84 22 C 88 36, 98 46, 112 48" fill="none" stroke="#241F2E" stroke-width="3.4" stroke-linecap="round"/><path d="M 104 -14 C 100 -2, 100 12, 104 26" fill="none" stroke="#C3C6D0" stroke-width="3" stroke-linecap="round"/><path d="M 120 -16 C 116 -2, 116 14, 120 28" fill="none" stroke="#C3C6D0" stroke-width="3" stroke-linecap="round"/><path d="M 134 -14 C 130 -2, 130 12, 134 24" fill="none" stroke="#C3C6D0" stroke-width="3" stroke-linecap="round"/></g></svg>`;
-const GLOVE_IMG = new Image();
-GLOVE_IMG.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(GLOVE);
-const GRIP_W = 223, GRIP_H = 217, GRIP_TIPX = 57, GRIP_TIPY = 59, GRIP_SCALE = .62;
-
-/* Except that a drawn-by-hand hand kept looking drawn by hand. The phone
-   already has a pointing one - real artwork, Apple's on iOS - so use that and
-   blit it from an offscreen canvas.
-
-   Where the fingertip sits inside the glyph is different on every platform, so
-   it is measured instead of guessed: render it once, and the topmost opaque
-   pixel is the end of the finger. If there is no colour in what came back
-   there is no emoji font here, and the drawn glove above is still the
-   fallback. */
-const HAND_PX = 128, HAND_SCALE = .95, HAND_ANG = 42 * Math.PI / 180;
-function buildHand() {
-    try {
-        const c = document.createElement('canvas');
-        c.width = c.height = HAND_PX;
-        const x = c.getContext('2d', { willReadFrequently: true });
-        x.font = `${HAND_PX * .8}px "Apple Color Emoji", "Segoe UI Emoji", ` +
-                 `"Noto Color Emoji", sans-serif`;
-        x.textAlign = 'center'; x.textBaseline = 'middle';
-        x.fillText('\u{1F446}', HAND_PX / 2, HAND_PX / 2);
-        const d = x.getImageData(0, 0, HAND_PX, HAND_PX).data;
-        let top = -1, bot = -1, sx = 0, n = 0, coloured = false;
-        for (let yy = 0; yy < HAND_PX; yy++) {
-            for (let xx = 0; xx < HAND_PX; xx++) {
-                const i = (yy * HAND_PX + xx) * 4;
-                if (d[i + 3] < 40) continue;
-                if (top < 0) top = yy;
-                if (yy === top) { sx += xx; n++; }
-                bot = yy;
-                if (Math.max(d[i], d[i+1], d[i+2]) - Math.min(d[i], d[i+1], d[i+2]) > 25)
-                    coloured = true;
-            }
-        }
-        // a missing glyph is a hollow box, and a text fallback has no colour
-        if (!coloured || top < 0 || bot - top < HAND_PX * .3) return null;
-        return { cv: c, tx: n ? sx / n : HAND_PX / 2, ty: top };
-    } catch (e) { return null; }
-}
-let hand = buildHand();
-// emoji come from a system font, but ask again once fonts have settled
-if (document.fonts) document.fonts.ready.then(() => { if (!hand) hand = buildHand(); }).catch(() => {});
+   Drawing it: put the canvas origin on the point of contact, swing the whole
+   thing 42 degrees anticlockwise so the finger points up-left, and hang the
+   image off its own fingertip. The hand then trails away down and right,
+   where a right hander's hand already is, and stays clear of the line. */
+const HAND_W = 152, HAND_H = 178, HAND_TIPX = 82.3, HAND_TIPY = 2;
+const HAND_SCALE = .74, HAND_ANG = 42 * Math.PI / 180;
+const HAND = new Image();
+HAND.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="152" height="178" viewBox="56 67 152 178"><g stroke="#241F2E" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M176.403 221.53c4.588 7.51-.596 12.31-7.584 15.88-9.886 5.048-34.345 2.586-42.719-2.462-7.686-4.678-11.096-11.449-7.437-17.481" fill="#fff"/><path d="M62.3 171.054c-6.903 13.05 20.754 18.713 28.687 19.698 9.532 1.231 23.637 27.33 40.17 32.255 11.205 3.324 36.103 4.678 44.927-1.847 15.116-11.08 22.748-25.484 26.208-43.211 1.219-6.28 2.093-13.42 1.17-19.329-3.916-24.646-18.4-24.634-24.018-25.508-3.357-10.735-15.634-18.516-32.093-15.253-.126-13.222.279-21.372 1.37-33.893 1.826-20.953-34.559-14.834-33.82 18.787.372 16.878 7.696 45.28-1.983 67.563-19.256-16.25-38.105-23.022-50.618.738z" fill="#fff"/><path d="M168.912 213.035c6.08-11.45 6.331-14.773 8.403-20.683M157.333 212.789c3.418-13.912 3.752-20.806 5.188-30.285M143.523 212.173c1.052-9.849.64-14.527.683-20.805" fill="none"/></g><path fill="#241F2E" d="M144.846 117.058c.037 12.631 1.495 22.443 8.896 32.083-3.09-8.002-4.149-24.154-3.911-34.336l-4.985 2.253zM181.327 130.834l-4.69 1.835c2.376 6.857 4.988 14.625 8.759 18.688-1.33-3.201-2.557-14.749-4.069-20.523z"/></svg>`);
 
 /* ============================================================
    SCORING
@@ -994,19 +956,13 @@ function draw() {
 
     // whoever is doing the drawing, at the sharp end of it
     if (drawing && pts.length) {
-        const p = pts[pts.length - 1];
-        if (hand) {
-            // turned about the fingertip, so the point of contact stays put
-            const k = HAND_SCALE;
+        const p = pts[pts.length - 1], k = HAND_SCALE;
+        if (HAND.complete && HAND.naturalWidth) {
             ctx.save();
-            ctx.translate(p[0], p[1]);
-            ctx.rotate(-HAND_ANG);
-            ctx.drawImage(hand.cv, -hand.tx * k, -hand.ty * k, HAND_PX * k, HAND_PX * k);
+            ctx.translate(p[0], p[1]);          // the point of contact
+            ctx.rotate(-HAND_ANG);              // the finger points up; swing it up-left
+            ctx.drawImage(HAND, -HAND_TIPX * k, -HAND_TIPY * k, HAND_W * k, HAND_H * k);
             ctx.restore();
-        } else if (GLOVE_IMG.complete && GLOVE_IMG.naturalWidth) {
-            const k = GRIP_SCALE;
-            ctx.drawImage(GLOVE_IMG, p[0] - GRIP_TIPX * k, p[1] - GRIP_TIPY * k,
-                          GRIP_W * k, GRIP_H * k);
         }
     }
     // every path out of here goes past this: an early return would leave the
