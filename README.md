@@ -44,3 +44,10 @@ eighties. The nineties are genuinely hard.
 
 A stroke is turned down, with no penalty beyond the time it cost, if it stops
 short of a lap, breaks part way, crosses the dot, or is too small to judge.
+
+## The verdict
+
+The mark you got looks back at you: a cracked egg when you drew an egg, an
+unimpressed oval, a pleased near-circle, and a circle in sunglasses when you
+have earned it. Each band has its own pool of lines, and the bad ones have the
+most, because they are the funny ones.
