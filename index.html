@@ -168,7 +168,7 @@ body {
 }
 @keyframes ribbonIn { from { transform: translateX(-50%) rotate(-3deg) scale(0); }
                       to   { transform: translateX(-50%) rotate(-3deg) scale(1); } }
-#card.record #ribbon { display: block; }
+#card.failed #ribbon { display: block; }
 #card.record .inner { border-color: var(--gold); }
 #card.record #score { animation: scorePop .7s cubic-bezier(.2, 1.7, .4, 1) both; }
 @keyframes scorePop { 0% { transform: scale(.4); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
@@ -295,7 +295,7 @@ body {
 #card.record #ribbon { background: var(--gold); color: var(--ink); }
 #card.record .fh { display: block; }
 #card.record .fx { display: none; }
-#card.record.failed #note { display: block; opacity: .5; margin-top: 4px; }
+
 #summary {
     display: none; margin: 10px 0 0; color: var(--gold);
     font-family: var(--font-display); font-size: 25px; letter-spacing: .02em;
@@ -450,7 +450,7 @@ body {
 
     <div id="card" hidden>
         <div class="inner">
-            <div id="ribbon">NEW BEST</div>
+            <div id="ribbon"></div>
             <div class="cheer"></div>
             <span id="score">0.0<span class="pc">%</span></span>
             <p id="rating">Wonky</p>
@@ -466,7 +466,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v53';
+const APP_VERSION = 'v55';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -709,16 +709,24 @@ applySound();
    So take the very first touch anywhere on the page, in the capture phase so
    this runs before the handler that starts a stroke, build the context there
    and push one silent sample through it, which is what actually unlocks it. */
-let unlocked = false;
+let unlocked = false, keepAwake = null;
 function unlockAudio() {
     try {
         audioNow();                   // builds it, and resumes it if suspended
         if (unlocked) return;
         unlocked = true;
-        const b = audioCtx.createBufferSource();
-        b.buffer = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
-        b.connect(master);
-        b.start(0);
+        /* A single silent note, started inside this touch and never stopped.
+           Waiting for the clock to start was still leaving the first stroke
+           quiet, because a context with nothing playing need not start its
+           clock at all - so give it something to play. It is inaudible, it
+           costs one oscillator, and from here the clock is always real, which
+           is the only thing every sound in the game depends on. */
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        g.gain.value = 0;
+        o.frequency.value = 30;
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start();
+        keepAwake = o;
     } catch (e) { /* no audio here, never mind */ }
 }
 for (const ev of ['touchstart', 'touchend', 'pointerdown', 'mousedown', 'keydown'])
@@ -909,6 +917,23 @@ const SHAPES = {
     house:    { name: 'house', lines: 'odd', jokes: [
         'Planning permission denied', 'That is a shed', 'Subsidence',
         'The roof is going', 'Structurally unsound', 'Sold as seen'] },
+    /* Geometrically this is the square - the fit finds whatever turn you drew
+       it at, so the two cannot be told apart and nor should they be. What
+       differs is what you were asked for, and people draw a diamond quite
+       differently from a square. Stood on its corner, hence the turn. */
+    diamond:  { n: 4, up: -Math.PI / 4, name: 'diamond', lines: 'odd', jokes: [
+        'That is a square, and you know it', 'Cubic zirconia',
+        'Not anybody\u2019s best friend', 'Flawed, I am afraid', 'That is paste'] },
+    poo:      { name: 'poo', lines: 'odd', jokes: [
+        'Fitting', 'That is a Mr Whippy', 'It has gone flat',
+        'Needs more swirl', 'That is a soft serve', 'Well, quite'] },
+    sword:    { name: 'sword', lines: 'odd', jokes: [
+        'That is a butter knife', 'Excalibur it is not', 'That is a cross, surely',
+        'Blunt', 'You would stop nobody with that', 'More of a letter opener'] },
+    shield:   { name: 'shield', lines: 'odd', jokes: [
+        'That would stop nothing', 'The arrows are getting through',
+        'That is a plectrum', 'More of a tea tray', 'That is a badge',
+        'Hand it back to the armourer'] },
     cat:      { name: 'cat', lines: 'odd', jokes: [
         'That cat has been in a fight', 'One ear short', 'That is a bear',
         'The RSPCA would like a word', 'A potato with ears', 'More of a hamster'] },
@@ -919,7 +944,8 @@ const MODES = ['circle', 'triangle', 'square', 'random'];
 const RANDOM_POOL = ['circle', 'circle', 'circle', 'triangle', 'triangle', 'triangle',
                      'square', 'square', 'square', 'pentagon', 'pentagon',
                      'hexagon', 'hexagon', 'star', 'star',
-                     'fish', 'snowman', 'bolt', 'heart', 'house', 'cat'];
+                     'fish', 'snowman', 'bolt', 'heart', 'house', 'cat',
+                     'diamond', 'poo', 'sword', 'shield'];
 function profile(a, key, phi) {
     const f = SHAPES[key];
     if (!f) return 1;
@@ -948,6 +974,7 @@ function profile(a, key, phi) {
 // the way up a shape looks right when it is being demonstrated
 function uprightTurn(key) {
     const f = SHAPES[key];
+    if (f.up !== undefined) return f.up;                    // stood up its own way
     if (f.table || !f.n) return 0;                          // drawn the right way up already
     if (f.inner) return -Math.PI / 2;                       // a point at the top
     return -Math.PI / 2 + (f.n % 2 ? Math.PI / f.n : 0);    // odd sides point, even sides sit
@@ -970,7 +997,7 @@ const arc = (cx, cy, r, n, from = 0, to = Math.PI * 2) => {
     }
     return out;
 };
-const oval = (cx, cy, rx, ry, n, from, to) => {
+const oval = (cx, cy, rx, ry, n, from = 0, to = Math.PI * 2) => {
     const out = [];
     for (let i = 0; i <= n; i++) {
         const a = from + (to - from) * i / n;
@@ -984,20 +1011,36 @@ const heartRing = n => {
         const t = i / n * Math.PI * 2;
         const x = 16 * Math.pow(Math.sin(t), 3);
         const y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
-        out.push([x / 17, (y + 1) / 17]);
+        out.push([x / 17, (y - 3.5) / 17]);
     }
     return out;
 };
 const OUTLINES = {
-    // a rounded body and a proper forked tail, and nothing else
-    fish: [[[-1.55, -.80], [-.95, 0], [-1.55, .80],
-            ...oval(.02, 0, .95, .70, 40, 2.592, -2.592)]],
+    /* An egg on its side - fatter at the nose, tapering to where the tail
+       meets it - and a plain triangular tail rather than a forked one. The
+       two overlap, so the outline of their union is the fish. */
+    fish: [[...oval(.05, 0, 1.15, .86, 26, -Math.PI / 2, Math.PI / 2),
+            ...oval(.05, 0, .95, .86, 26, Math.PI / 2, Math.PI * 1.5)],
+           [[-.72, 0], [-1.60, -.88], [-1.60, .88]]],
     snowman: [arc(0, .38, .70, 44), arc(0, -.60, .46, 36)],
     bolt: [[[.28, -1], [-.62, .18], [-.20, .30], [-.30, 1], [.62, -.20], [.20, -.30]]],
     heart: [heartRing(64)],
     house: [[[-.8, -.05], [.8, -.05], [.8, .85], [-.8, .85]], [[-.95, -.02], [0, -.95], [.95, -.02]]],
     cat: [arc(0, .1, .8, 44), [[-.72, -.36], [-.78, -1], [-.18, -.62]],
           [[.72, -.36], [.78, -1], [.18, -.62]]],
+    // three tiers and a peak, each overhanging the one above it
+    poo: [oval(0, .66, 1.05, .46, 40), oval(-.06, .10, .72, .40, 34),
+          oval(.10, -.42, .46, .34, 30), oval(0, -.80, .26, .24, 24)],
+    // a heater shield: a peak in the middle of the top, straight flanks, and
+    // everything below the waist curving in to a point
+    shield: [[[0, -1.02], [.95, -.90], [1.02, -.30], [.95, .16], [.68, .66],
+              [.36, 1.02], [0, 1.30], [-.36, 1.02], [-.68, .66], [-.95, .16],
+              [-1.02, -.30], [-.95, -.90]]],
+    // blade up, crossguard at the waist, grip below - the middle of the guard
+    // is the middle of the shape, which is what keeps it single valued
+    sword: [[[0, -1.45], [.30, -1.16], [.30, -.15], [.95, -.15], [.95, .24],
+             [.26, .24], [.26, .74], [0, .86], [-.26, .74], [-.26, .24],
+             [-.95, .24], [-.95, -.15], [-.30, -.15], [-.30, -1.16]]],
 };
 const TABLE_N = 720;
 function bakeOutline(parts) {
@@ -1020,6 +1063,7 @@ function bakeOutline(parts) {
     }
     let max = 0;
     for (const r of t) if (r > max) max = r;
+    if (!max) throw new Error('outline baked to nothing');    // rather than a table of NaN
     for (let i = 0; i < TABLE_N; i++) t[i] /= max;            // corners at 1, as a polygon
     return t;
 }
@@ -1045,15 +1089,29 @@ for (const k of Object.keys(SHAPES)) {
 /* Which way up they drew it is their business, so the turn is fitted rather
    than demanded: sweep one sector coarsely, then close in around the best.
    A sector is all that is needed - the profile repeats every one of them. */
-function fitTurn(ang, rad, key) {
+function fitTurn(ang, rad, key, fine) {
     const f = SHAPES[key] || {};
     if (!f.n && !f.table) {                     // a circle has nothing to turn
         let t = 0; for (const r of rad) t += r;
         return { phi: 0, R: t / rad.length };
     }
-    // a fish has no symmetry to exploit, so its whole turn is the sector
+    // A fish has no symmetry to exploit, so its whole turn is the sector.
+    // Sweeping it too coarsely lands on the wrong minimum of a lumpy surface -
+    // the shield was coming out a full step askew, which is what made the
+    // dashed ghost look rotated for no reason - so the settled verdict sweeps
+    // it finely. The running fit, which happens on every sample of every
+    // stroke, does not need to and cannot afford to.
     const sec = f.table ? Math.PI * 2 : 2 * Math.PI / f.n;
-    const coarse = f.table ? 36 : 16;
+    const coarse = f.table ? (fine ? 120 : 36) : (fine ? 48 : 16);
+    /* Some shapes fit nearly as well at several turns - a shield was coming out
+       nine degrees over however finely the sweep was done, because nine degrees
+       genuinely costs it almost nothing. Where two turns are that close,
+       whichever is nearer the way it was demonstrated wins: the tenth of a
+       percent this bends the residual by cannot move a fit that is really
+       better, and it stops the dashed ghost sitting there askew for no reason
+       a player could see. */
+    const home = uprightTurn(key);
+    const fromHome = phi => Math.abs(((phi - home) % sec + sec * 1.5) % sec - sec / 2);
     let best = null;
     const tryPhi = phi => {
         let su = 0, sru = 0;
@@ -1067,7 +1125,8 @@ function fitTurn(ang, rad, key) {
             const d = rad[i] - R * profile(ang[i], key, phi);
             v += d * d;
         }
-        if (!best || v < best.v) best = { phi, R, v };
+        const tipped = v * (1 + fromHome(phi) * .03);
+        if (!best || tipped < best.tipped) best = { phi, R, v, tipped };
     };
     for (let i = 0; i < coarse; i++) tryPhi(i * sec / coarse);
     const c = best.phi;
@@ -1081,7 +1140,7 @@ const MIN_MEAN = 46;                // and a tiny circle is not an achievement
 const GAP_ALLOW = 2;                // bins you may leave empty and still be round
 const binOf = a => ((Math.floor((a + Math.PI) / (2 * Math.PI) * BINS) % BINS) + BINS) % BINS;
 
-function judge(points) {
+function judge(points, fine) {
     if (points.length < 24) return { ok: false, lap: 0, why: 'Too short - draw all the way round the dot.' };
     const sum = new Float64Array(BINS), cnt = new Uint32Array(BINS);
     let sweep = 0, pa = null, pr = 0, inside = false;
@@ -1123,7 +1182,7 @@ function judge(points) {
     // the fit is worked out as soon as there is enough of a shape to fit, so
     // the line can be coloured against it while it is still being drawn
     const form = run.form;
-    const f = n >= 12 ? fitTurn(ang, rad, form) : null;
+    const f = n >= 12 ? fitTurn(ang, rad, form, fine) : null;
     const part = f ? { lap, mean, way, R: f.R, phi: f.phi, form } : { lap, way };
     if (filled < BINS - GAP_ALLOW)
         return { ...part, ok: false, why: Math.abs(sweep) < Math.PI * 1.6
@@ -1502,7 +1561,7 @@ function end() {
     humStop();
     liveEl.classList.remove('on');
     clockEl.classList.remove('on', 'low');
-    verdict = judge(pts);
+    verdict = judge(pts, true);          // the one that is kept gets the careful fit
     if (verdict.ok && verdict.way) natural = verdict.way;
     draw();
     if (verdict.ok) settle(verdict.score);
@@ -1850,6 +1909,7 @@ function settle(score) {
         try { localStorage.setItem(bestKey(run.mode), String(best)); } catch (e) { /* private mode */ }
     }
     card.className = row[1] + (passed ? '' : ' failed') + (record ? ' record' : '');
+    document.getElementById('ribbon').textContent = record ? 'NEW BEST' : 'RUN OVER';
     // The card is about the run ending, so the run is what it leads with. How
     // close the last one came is a detail, and it reads as one.
     document.getElementById('score').innerHTML =
@@ -1865,9 +1925,12 @@ function settle(score) {
     document.getElementById('rating').textContent = record ? pick(RECORD_LINES) : pick(jokes);
     document.getElementById('pass').innerHTML = passed
         ? `<span class="ok">Through</span> &middot; needed ${pc(need)}%`
-        : `<span class="no">Run over</span> &middot; ${pc(score)}%, needed ${pc(need)}%`;
-    document.getElementById('note').textContent = record ? pick(jokes)
-        : `The dashed line is the ${SHAPES[run.form].name} you were aiming for.`;
+        : `${pc(score)}%, needed ${pc(need)}%`;
+    // On a best the card already carries the ribbon, the rounds and the record
+    // line; a fifth line telling you it was a bunting flag only deflates it.
+    // The joke is the headline on an ordinary run over, which is its place.
+    document.getElementById('note').textContent =
+        `The dashed line is the ${SHAPES[run.form].name} you were aiming for.`;
     document.getElementById('card-best').textContent = fmt(best);
     showRound(run.round);
     document.getElementById('again').textContent = passed ? `Round ${run.round + 1}` : 'Again!';
