@@ -1,7 +1,7 @@
 /* Cache the game so it keeps working with no signal. Bump CACHE on release. */
 const CACHE = 'perfect-circle-v10';
 const ASSETS = ['./', './index.html', './manifest.webmanifest',
-                './icon-192.png', './icon-512.png', './icon-512-maskable.png', './oooooooh.m4a'];
+                './icon-192.png', './icon-512.png', './icon-512-maskable.png', './oooooooh.mp4'];
 
 self.addEventListener('install', e => {
     e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
