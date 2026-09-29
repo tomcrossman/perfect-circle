@@ -208,7 +208,15 @@ body {
    THE RUN
    ============================================================ */
 #hud { gap: 6px; }
-.plate.mid { font-size: 20px; opacity: .95; }
+.plate .of {
+    display: inline-flex; align-items: center; gap: 3px;
+    margin-left: 7px; padding-left: 8px; border-left: 2.5px solid rgba(36,31,46,.18);
+    font-size: .74em; opacity: .62;
+}
+/* once you are past your best, the plate is your own run saying so */
+#bestplate.beating { background: var(--gold); animation: beat .5s ease-in-out infinite alternate; }
+#bestplate.beating .of { display: none; }
+@keyframes beat { from { transform: scale(1); } to { transform: scale(1.06); } }
 /* the clock, when the round has one */
 #clock {
     position: absolute; top: 62px; left: 50%; transform: translateX(-50%); z-index: 3;
@@ -309,8 +317,8 @@ body {
     <div id="flash"></div>
 
     <div id="hud">
-        <div class="plate"><svg class="ico"><use href="#i-star"/></svg><span id="total-val">0</span></div>
-        <div class="plate mid"><svg class="ico"><use href="#i-cup"/></svg><span id="best-val">0</span></div>
+        <div class="plate" id="bestplate">Round&nbsp;<span id="round-val">1</span><span
+            class="of"><svg class="ico"><use href="#i-cup"/></svg><span id="best-val">0</span></span></div>
         <button id="mute" aria-label="Sound on or off">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#241F2E"
                  stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
@@ -339,9 +347,9 @@ body {
             <div id="summary">
                 <div class="tot">
                     <div><span>Rounds</span><b id="sum-rounds">0</b></div>
-                    <div><span>Score</span><b id="sum-total">0</b></div>
+                    <div><span>Points</span><b id="sum-total">0</b></div>
                 </div>
-                <div id="bestline"><svg class="ico"><use href="#i-cup"/></svg>Best <span id="card-best">0</span></div>
+                <div id="bestline"><svg class="ico"><use href="#i-cup"/></svg>Best <span id="card-best">0</span> rounds</div>
             </div>
             <button class="btn" id="again">Round 2</button>
         </div>
@@ -351,7 +359,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v20';
+const APP_VERSION = 'v24';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -484,7 +492,10 @@ const BOOS = voices(['boo-1.mp4',
                      'boo-5.mp4',
                      'boo-6.mp4',
                      'boo-7.mp4',
-                     'boo-8.mp4'], .95);
+                     'boo-8.mp4',
+                     'boo-9.mp4',
+                     'boo-10.mp4',
+                     'boo-11.mp4'], .95);
 const ALL_VOICES = [YAYS, BOOS];
 let voicesWoken = false;
 function wakeVoices() {
@@ -559,7 +570,7 @@ const TWISTS = {
 const TWIST_KEYS = Object.keys(TWISTS);
 // the bar climbs quickly at first and then creeps, so it is always just
 // out of reach without ever becoming arithmetic
-const passMark = r => 88 - 48 * Math.pow(.88, r - 1);
+const passMark = r => 82 - 46 * Math.pow(.9, r - 1);
 // how many of the unlocked ones are thrown at you at once
 const twistCount = r => Math.min(3, 1 + Math.floor((r - 4) / 4));
 // generous to begin with, and never quite enough later on
@@ -666,9 +677,12 @@ function judge(points) {
     let v = 0;
     for (let i = 0; i < BINS; i++) if (cnt[i]) { const d = sum[i] / cnt[i] - mean; v += d * d; }
     const sd = Math.sqrt(v / n);
-    // a human drawing carefully lands around 1.5% off; the curve turns that into
-    // the high eighties and leaves the nineties genuinely hard
-    const score = 100 * Math.pow(Math.max(0, 1 - sd / mean), 8);
+    // A finger on glass is nothing like as steady as it feels. A respectable
+    // freehand circle wanders about 15% off its own average, so a curve tuned
+    // for a 2% wobble buried every real attempt in the bottom of the range.
+    // At this exponent a normal circle lands in the sixties, a careful one in
+    // the eighties, and the nineties still have to be earned.
+    const score = 100 * Math.pow(Math.max(0, 1 - sd / mean), 3);
     return { ok: true, score: Math.max(0, Math.min(100, score)), mean };
 }
 
@@ -987,7 +1001,9 @@ function jolt(ok) {
                     { duration: ok ? 280 : 360, easing: 'ease-out' });
 }
 
-const bestKey = 'pc-best';
+// how far you got, not a sum of percentages: the bar rises every round, so the
+// round you reached is the difficulty you survived and needs no explaining
+const bestKey = 'pc-rounds';
 let best = 0;
 try { best = parseInt(localStorage.getItem(bestKey) || '0', 10) || 0; } catch (e) { best = 0; }
 const fmt = n => Math.round(n).toLocaleString('en-GB');
@@ -1034,6 +1050,7 @@ const pick = a => a[(Math.random() * a.length) | 0];
 
 function startRound(n) {
     burst = null;
+    showRound(n);
     run.round = n;
     run.live = true;
     run.twists = rollTwists(n);
@@ -1054,8 +1071,14 @@ function startRound(n) {
     bannerEl.classList.add('go');
     promptEl.textContent = n === 1 ? 'Draw a circle around the dot' : 'Round the dot again';
     promptEl.classList.remove('gone');
-    document.getElementById('total-val').textContent = fmt(run.total);
     draw();
+}
+
+// the plate carries the round you are on and the furthest you have ever got
+function showRound(n) {
+    document.getElementById('round-val').textContent = n;
+    document.getElementById('best-val').textContent = fmt(best);
+    document.getElementById('bestplate').classList.toggle('beating', n - 1 > best);
 }
 
 function settle(score) {
@@ -1063,9 +1086,10 @@ function settle(score) {
     const passed = score >= need;
     const row = RATINGS.find(r => score >= r[0]);
     if (passed) run.total += Math.round(score);
-    const record = !passed && run.total > best;
+    const done = run.round - (passed ? 0 : 1);          // rounds actually completed
+    const record = !passed && done > best;
     if (record) {
-        best = run.total;
+        best = done;
         try { localStorage.setItem(bestKey, String(best)); } catch (e) { /* private mode */ }
     }
     card.className = row[1] + (passed ? '' : ' failed') + (record ? ' record' : '');
@@ -1076,11 +1100,10 @@ function settle(score) {
         : `<span class="no">Needed ${pc(need)}%</span>`;
     document.getElementById('note').textContent =
         'The dashed ring is the circle you were aiming for.';
-    document.getElementById('sum-rounds').textContent = run.round - 1;
+    document.getElementById('sum-rounds').textContent = done;
     document.getElementById('sum-total').textContent = fmt(run.total);
     document.getElementById('card-best').textContent = fmt(best);
-    document.getElementById('total-val').textContent = fmt(run.total);
-    document.getElementById('best-val').textContent = fmt(Math.max(best, run.total));
+    showRound(run.round);
     document.getElementById('again').textContent = passed ? `Round ${run.round + 1}` : 'Again!';
     if (!passed) run.live = false;
     // the moment the lap closes, before the card has any say in it

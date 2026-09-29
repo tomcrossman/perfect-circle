@@ -4,7 +4,7 @@ const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png'
                 './icon-512.png', './icon-512-maskable.png', './oooooooh.mp4', './yay-1.mp4',
                 './yay-2.mp4', './yay-3.mp4', './yay-4.mp4', './yay-5.mp4', './boo-1.mp4',
                 './boo-2.mp4', './boo-3.mp4', './boo-4.mp4', './boo-5.mp4', './boo-6.mp4',
-                './boo-7.mp4', './boo-8.mp4'];
+                './boo-7.mp4', './boo-8.mp4', './boo-9.mp4', './boo-10.mp4', './boo-11.mp4'];
 
 self.addEventListener('install', e => {
     e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
