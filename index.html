@@ -419,7 +419,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v60';
+const APP_VERSION = 'v61';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -1868,7 +1868,7 @@ function settle(score) {
     card.className = row[1] + (passed ? '' : ' failed') + (record ? ' record' : '');
     document.querySelector('.cheer').innerHTML = mascotFor(run.form, score);
     // only ever seen on the card, which only appears when the run has ended
-    if (!passed) document.getElementById('ribbon').textContent = record ? 'NEW BEST' : 'RUN OVER';
+    if (!passed) document.getElementById('ribbon').textContent = record ? 'NEW BEST' : 'GAME OVER';
     // The card is about the run ending, so the run is what it leads with. How
     // close the last one came is a detail, and it reads as one.
     document.getElementById('score').innerHTML =
