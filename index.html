@@ -469,7 +469,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v46';
+const APP_VERSION = 'v47';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -781,15 +781,24 @@ const run = { round: 0, live: false, tally: false, twists: [], limit: 0, drift: 
 const has = k => run.twists.includes(k);
 // the clock is always on, so nothing has to ask
 
+// A habit only reasserts itself if it is left alone. Dealt three rounds in
+// four, the direction twist stopped being a habit to break and became an
+// instruction to read - so it is never dealt twice running. The round in
+// between is the one that puts your own way of going round back on autopilot,
+// which is the only thing that makes the next flip land cold.
+let hadWay = false;
 function rollTwists(r) {
-    const pool = TWIST_KEYS.filter(k => r >= TWISTS[k].from);
-    if (!pool.length) return [];
+    if (r <= 1) hadWay = false;                 // a fresh run forgets
+    let pool = TWIST_KEYS.filter(k => r >= TWISTS[k].from);
+    if (hadWay) pool = pool.filter(k => k !== 'way');
+    if (!pool.length) { hadWay = false; return []; }
     const want = Math.min(pool.length, twistCount(r));
     // the newest one is always in, so an unlock is never announced and then withheld
     const fresh = pool.filter(k => TWISTS[k].from === r);
     const picked = [...fresh];
     const rest = pool.filter(k => !picked.includes(k));
     while (picked.length < want && rest.length) picked.push(rest.splice(Math.random() * rest.length | 0, 1)[0]);
+    hadWay = picked.includes('way');
     return TWIST_KEYS.filter(k => picked.includes(k));
 }
 
