@@ -288,6 +288,41 @@ body {
 }
 .tot span { display: block; font-family: var(--font); font-size: 10px; font-weight: 900;
             letter-spacing: .07em; text-transform: uppercase; opacity: .5; }
+
+/* ============================================================
+   DRAWN, NOT PRINTED
+   Nothing on a sheet of paper has four matching corners, and no pen lands
+   twice in the same place. So the chrome gets an uneven radius, a second
+   pass of the outline slightly off register, and a degree or so of tilt -
+   which is the whole difference between a dialog and a doodle.
+   ============================================================ */
+.plate, #mute, #clock, #card .inner, .btn, #ribbon {
+    border-radius: 16px 10px 17px 11px / 11px 17px 10px 16px;
+}
+.plate, #mute, #clock, #card .inner, .btn { position: relative; }
+.plate::after, #mute::after, #clock::after, #card .inner::after, .btn::after {
+    content: ''; position: absolute; inset: -2px; pointer-events: none;
+    border: 2.4px solid var(--ink); opacity: .28;
+    border-radius: 11px 17px 10px 16px / 17px 11px 16px 10px;
+    transform: rotate(.6deg);
+}
+#card .inner::after { inset: -4px; border-width: 3px; transform: rotate(-.45deg); }
+/* a tilt each, so the row never lines up like a toolbar. These are the
+   independent rotate property on purpose: transform is spoken for by the
+   press, the beat and the entrances, and they all have to keep working */
+.plate { rotate: -.7deg; }
+#mute  { rotate: 1.1deg; }
+#clock { rotate: .5deg; }
+.btn   { rotate: -.6deg; }
+#card .inner { rotate: .35deg; }
+/* the faintest pencil tooth inside the panels */
+#card .inner, .plate, #clock {
+    background-image: repeating-linear-gradient(48deg,
+        rgba(64, 92, 122, .05) 0 1.5px, transparent 1.5px 7px);
+}
+.cheer { z-index: 2; }            /* over the card, not under its second outline */
+#clock .track { border-radius: 9px 5px 10px 6px / 6px 10px 5px 9px; }
+#clock i { border-radius: inherit; }
 </style>
 </head>
 
@@ -363,7 +398,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v30';
+const APP_VERSION = 'v31';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -556,14 +591,13 @@ const TWISTS = {
 const TWIST_KEYS = Object.keys(TWISTS);
 // the bar climbs quickly at first and then creeps, so it is always just
 // out of reach without ever becoming arithmetic
-const passMark = r => 82 - 46 * Math.pow(.9, r - 1);
+const passMark = r => 95 - 59 * Math.pow(.93, r - 1);
 // how many of the unlocked ones are thrown at you at once
 const twistCount = r => Math.min(3, 1 + Math.floor((r - 4) / 4));
 // generous to begin with, and never quite enough later on
 const timeFor = r => 1.6 + 3.4 * Math.pow(.92, r - 1);
 
-const run = { round: 0, live: false, tally: false, twists: [], limit: 0, drift: 0, swarmN: 0,
-              grip: 'pencil' };
+const run = { round: 0, live: false, tally: false, twists: [], limit: 0, drift: 0, swarmN: 0 };
 const has = k => run.twists.includes(k);
 // the clock is always on, so nothing has to ask
 
@@ -607,28 +641,16 @@ function swarmAt(ms) {
 }
 
 /* ---- the hand ---------------------------------------------------------
-   Drawn in pen space - tip at the origin, barrel along +x, fist over the top -
-   and tipped 42 degrees, so the point lands exactly where your finger is and
-   the hand trails away down and right. That is where a right hander's hand
-   already is, and it keeps it off the line being drawn.
+   Drawn in finger space - the fingertip at the origin, the hand running away
+   along +x - and tipped 42 degrees, so the point of contact lands exactly on
+   the line and the hand trails off down and right. That is where a right
+   hander's hand already is, and it keeps it clear of what you are drawing.
 
-   A different thing to draw with every round, which is the joke. */
-const GRIPS = {
-    'pencil': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 140"><g transform="rotate(42 10 10) translate(10 10)"><path d="M 0 0 L 17 -6 L 17 6 Z" fill="#E8C9A0" stroke="#241F2E" stroke-width="3" stroke-linejoin="round"/><path d="M 0 0 L 8 -2.8 L 8 2.8 Z" fill="#241F2E" stroke="none"/><rect x="16" y="-6.0" width="66" height="12" rx="1" fill="#F4B32C" stroke="#241F2E" stroke-width="3" stroke-linejoin="round"/><path d="M 74 -20 C 98 -22, 122 -8, 130 14 C 138 36, 128 56, 108 60 L 78 66 C 60 69, 48 58, 48 40 L 48 8 C 48 -8, 58 -19, 74 -20 Z" fill="#FFDCC0" stroke="#241F2E" stroke-width="3.6" stroke-linejoin="round"/><path d="M 62 16 C 74 8, 92 10, 100 20 M 60 34 C 74 26, 94 28, 104 38 M 62 52 C 74 46, 92 48, 100 56" fill="none" stroke="#E2A98C" stroke-width="2.6" stroke-linecap="round"/><path d="M 44 -6 C 52 -22, 72 -28, 84 -20 C 94 -13, 92 2, 80 6 C 68 10, 52 6, 44 -6 Z" fill="#FFDCC0" stroke="#241F2E" stroke-width="3.4" stroke-linejoin="round"/></g></svg>`,
-    'biro': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 140"><g transform="rotate(42 10 10) translate(10 10)"><path d="M 0 0 L 14 -4.5 L 14 4.5 Z" fill="#3C4254" stroke="#241F2E" stroke-width="2.6" stroke-linejoin="round"/><rect x="13" y="-5.0" width="12" height="10" rx="2" fill="#E6EAF2" stroke="#241F2E" stroke-width="3" stroke-linejoin="round"/><rect x="24" y="-5.5" width="58" height="11" rx="3" fill="#2FA8E0" stroke="#241F2E" stroke-width="3" stroke-linejoin="round"/><path d="M 74 -20 C 98 -22, 122 -8, 130 14 C 138 36, 128 56, 108 60 L 78 66 C 60 69, 48 58, 48 40 L 48 8 C 48 -8, 58 -19, 74 -20 Z" fill="#FFDCC0" stroke="#241F2E" stroke-width="3.6" stroke-linejoin="round"/><path d="M 62 16 C 74 8, 92 10, 100 20 M 60 34 C 74 26, 94 28, 104 38 M 62 52 C 74 46, 92 48, 100 56" fill="none" stroke="#E2A98C" stroke-width="2.6" stroke-linecap="round"/><path d="M 44 -6 C 52 -22, 72 -28, 84 -20 C 94 -13, 92 2, 80 6 C 68 10, 52 6, 44 -6 Z" fill="#FFDCC0" stroke="#241F2E" stroke-width="3.4" stroke-linejoin="round"/></g></svg>`,
-    'crayon': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 140"><g transform="rotate(42 10 10) translate(10 10)"><path d="M 0 0 L 15 -8 L 15 8 Z" fill="#E8524F" stroke="#241F2E" stroke-width="3" stroke-linejoin="round"/><rect x="14" y="-8.5" width="56" height="17" rx="2" fill="#E8524F" stroke="#241F2E" stroke-width="3" stroke-linejoin="round"/><rect x="24" y="-9.5" width="36" height="19" rx="1" fill="#FBEFD8" stroke="#241F2E" stroke-width="2.6" stroke-linejoin="round"/><path d="M 32 -8 L 32 8 M 44 -8 L 44 8 M 56 -8 L 56 8" stroke="#E8524F" stroke-width="2.2" opacity=".5"/><path d="M 74 -20 C 98 -22, 122 -8, 130 14 C 138 36, 128 56, 108 60 L 78 66 C 60 69, 48 58, 48 40 L 48 8 C 48 -8, 58 -19, 74 -20 Z" fill="#FFDCC0" stroke="#241F2E" stroke-width="3.6" stroke-linejoin="round"/><path d="M 62 16 C 74 8, 92 10, 100 20 M 60 34 C 74 26, 94 28, 104 38 M 62 52 C 74 46, 92 48, 100 56" fill="none" stroke="#E2A98C" stroke-width="2.6" stroke-linecap="round"/><path d="M 44 -6 C 52 -22, 72 -28, 84 -20 C 94 -13, 92 2, 80 6 C 68 10, 52 6, 44 -6 Z" fill="#FFDCC0" stroke="#241F2E" stroke-width="3.4" stroke-linejoin="round"/></g></svg>`,
-    'marker': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 140"><g transform="rotate(42 10 10) translate(10 10)"><path d="M 0 -6 L 13 -9 L 13 9 L 0 6 Z" fill="#3C4254" stroke="#241F2E" stroke-width="3" stroke-linejoin="round"/><rect x="12" y="-10.5" width="10" height="21" rx="2" fill="#E6EAF2" stroke="#241F2E" stroke-width="3" stroke-linejoin="round"/><rect x="21" y="-10.5" width="56" height="21" rx="4" fill="#241F2E" stroke="#241F2E" stroke-width="3" stroke-linejoin="round"/><path d="M 74 -20 C 98 -22, 122 -8, 130 14 C 138 36, 128 56, 108 60 L 78 66 C 60 69, 48 58, 48 40 L 48 8 C 48 -8, 58 -19, 74 -20 Z" fill="#FFDCC0" stroke="#241F2E" stroke-width="3.6" stroke-linejoin="round"/><path d="M 62 16 C 74 8, 92 10, 100 20 M 60 34 C 74 26, 94 28, 104 38 M 62 52 C 74 46, 92 48, 100 56" fill="none" stroke="#E2A98C" stroke-width="2.6" stroke-linecap="round"/><path d="M 44 -6 C 52 -22, 72 -28, 84 -20 C 94 -13, 92 2, 80 6 C 68 10, 52 6, 44 -6 Z" fill="#FFDCC0" stroke="#241F2E" stroke-width="3.4" stroke-linejoin="round"/></g></svg>`,
-    'quill': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 140"><g transform="rotate(42 10 10) translate(10 10)"><path d="M 0 0 L 20 -3 L 20 3 Z" fill="#3C4254" stroke="#241F2E" stroke-width="2.6" stroke-linejoin="round"/><path d="M 18 0 C 32 -4, 48 -8, 60 -8 C 74 -8, 86 -2, 88 8 C 76 12, 60 10, 46 6 C 34 3, 24 1, 18 0 Z" fill="#F6FAFD" stroke="#241F2E" stroke-width="3" stroke-linejoin="round"/><path d="M 28 -2 L 36 5 M 42 -4 L 50 4 M 56 -5 L 64 3 M 70 -4 L 76 4" fill="none" stroke="#C9D4E0" stroke-width="2"/><path d="M 74 -20 C 98 -22, 122 -8, 130 14 C 138 36, 128 56, 108 60 L 78 66 C 60 69, 48 58, 48 40 L 48 8 C 48 -8, 58 -19, 74 -20 Z" fill="#FFDCC0" stroke="#241F2E" stroke-width="3.6" stroke-linejoin="round"/><path d="M 62 16 C 74 8, 92 10, 100 20 M 60 34 C 74 26, 94 28, 104 38 M 62 52 C 74 46, 92 48, 100 56" fill="none" stroke="#E2A98C" stroke-width="2.6" stroke-linecap="round"/><path d="M 44 -6 C 52 -22, 72 -28, 84 -20 C 94 -13, 92 2, 80 6 C 68 10, 52 6, 44 -6 Z" fill="#FFDCC0" stroke="#241F2E" stroke-width="3.4" stroke-linejoin="round"/></g></svg>`,
-    'carrot': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 140"><g transform="rotate(42 10 10) translate(10 10)"><path d="M 0 0 L 20 -10 L 20 10 Z" fill="#F08A34" stroke="#241F2E" stroke-width="3" stroke-linejoin="round"/><rect x="19" y="-10.0" width="52" height="20" rx="3" fill="#F08A34" stroke="#241F2E" stroke-width="3" stroke-linejoin="round"/><path d="M 26 -10 L 30 -4 M 40 10 L 44 4 M 54 -10 L 58 -4 M 68 10 L 72 4" fill="none" stroke="#C96A1E" stroke-width="2.4" stroke-linecap="round"/><path d="M 74 -20 C 98 -22, 122 -8, 130 14 C 138 36, 128 56, 108 60 L 78 66 C 60 69, 48 58, 48 40 L 48 8 C 48 -8, 58 -19, 74 -20 Z" fill="#FFDCC0" stroke="#241F2E" stroke-width="3.6" stroke-linejoin="round"/><path d="M 62 16 C 74 8, 92 10, 100 20 M 60 34 C 74 26, 94 28, 104 38 M 62 52 C 74 46, 92 48, 100 56" fill="none" stroke="#E2A98C" stroke-width="2.6" stroke-linecap="round"/><path d="M 44 -6 C 52 -22, 72 -28, 84 -20 C 94 -13, 92 2, 80 6 C 68 10, 52 6, 44 -6 Z" fill="#FFDCC0" stroke="#241F2E" stroke-width="3.4" stroke-linejoin="round"/></g></svg>`,
-};
-const GRIP_KEYS = Object.keys(GRIPS);
-const GRIP_IMGS = {};
-for (const k of GRIP_KEYS) {
-    const img = new Image();
-    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(GRIPS[k]);
-    GRIP_IMGS[k] = img;
-}
-const GRIP_W = 150, GRIP_H = 140, GRIP_TIP = 10, GRIP_SCALE = .78;
+   No pen: the finger is the pen. */
+const GLOVE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 223 217"><g transform="translate(56.6 59.2) rotate(42)"><path d="M 1.0 15.0 A 15 15 0 0 1 -1.0 -15.0 L 58.9 -21.0 A 17 17 0 0 1 61.1 13.0 Z" fill="#FFFFFF" stroke="#241F2E" stroke-width="4.2" stroke-linejoin="round"/><path d="M 102.5 -22.8 A 16 16 0 0 1 73.5 -9.2 L 60.2 -44.5 A 13 13 0 0 1 83.8 -55.5 Z" fill="#FFFFFF" stroke="#241F2E" stroke-width="4.2" stroke-linejoin="round"/><path d="M 130 -32 C 146 -36, 162 -30, 164 -12 L 164 28 C 162 46, 146 52, 130 48 Z" fill="#FFFFFF" stroke="#241F2E" stroke-width="4.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M 58 -26 C 76 -32, 104 -34, 122 -30 C 140 -26, 148 -10, 146 8 C 144 28, 132 44, 112 50 C 94 55, 74 54, 64 46 C 54 38, 50 22, 52 4 C 53 -10, 54 -22, 58 -26 Z" fill="#FFFFFF" stroke="#241F2E" stroke-width="4.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M 62 30 C 74 40, 92 46, 110 44" fill="#FFFFFF" stroke="#241F2E" stroke-width="0" stroke-linejoin="round" stroke-linecap="round"/><path d="M 66 26 C 70 38, 82 46, 96 48" fill="none" stroke="#241F2E" stroke-width="3.4" stroke-linecap="round"/><path d="M 84 22 C 88 36, 98 46, 112 48" fill="none" stroke="#241F2E" stroke-width="3.4" stroke-linecap="round"/><path d="M 104 -14 C 100 -2, 100 12, 104 26" fill="none" stroke="#C3C6D0" stroke-width="3" stroke-linecap="round"/><path d="M 120 -16 C 116 -2, 116 14, 120 28" fill="none" stroke="#C3C6D0" stroke-width="3" stroke-linecap="round"/><path d="M 134 -14 C 130 -2, 130 12, 134 24" fill="none" stroke="#C3C6D0" stroke-width="3" stroke-linecap="round"/></g></svg>`;
+const GLOVE_IMG = new Image();
+GLOVE_IMG.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(GLOVE);
+const GRIP_W = 223, GRIP_H = 217, GRIP_TIPX = 57, GRIP_TIPY = 59, GRIP_SCALE = .62;
 
 /* ============================================================
    SCORING
@@ -833,10 +855,10 @@ function draw() {
 
     // whoever is doing the drawing, at the sharp end of it
     if (drawing && pts.length) {
-        const img = GRIP_IMGS[run.grip];
-        if (img && img.complete && img.naturalWidth) {
+        const img = GLOVE_IMG;
+        if (img.complete && img.naturalWidth) {
             const p = pts[pts.length - 1], k = GRIP_SCALE;
-            ctx.drawImage(img, p[0] - GRIP_TIP * k, p[1] - GRIP_TIP * k, GRIP_W * k, GRIP_H * k);
+            ctx.drawImage(img, p[0] - GRIP_TIPX * k, p[1] - GRIP_TIPY * k, GRIP_W * k, GRIP_H * k);
         }
     }
     // every path out of here goes past this: an early return would leave the
@@ -1095,7 +1117,6 @@ function startRound(n) {
     run.drift = Math.min(44, 13 + (n - TWISTS.drift.from) * 2.8);
     run.swarmN = Math.min(26, 8 + (n - TWISTS.swarm.from) * 1.6) | 0;
     roundT0 = now();
-    run.grip = GRIP_KEYS[(Math.random() * GRIP_KEYS.length) | 0];
     if (has('swarm')) seedSwarm(run.swarmN);
     armClock();
     pts = []; verdict = null; drawing = false;
