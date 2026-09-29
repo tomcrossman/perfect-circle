@@ -122,25 +122,32 @@ body {
    and granted on every one after it. A button press is the unambiguous
    interaction it wants, so pressing Play is what opens the audio, and by the
    time anyone draws anything it is all running. */
+/* The whole page, not a panel on it - and no panel means you can see straight
+   through to the paper, where the game is already drawing a lap of itself
+   round the dot. Which is a better logo than a logo: it says what this is in
+   one go, and it is the thing you are about to do. The wash under the words
+   is the paper colour fading up, so the drawing comes out of it. */
 #intro {
-    position: absolute; inset: 0; z-index: 12; display: flex;
-    align-items: center; justify-content: center; padding: 22px;
+    position: absolute; inset: 0; z-index: 12;
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+    padding: 0 22px 9%; text-align: center;
+    background: linear-gradient(transparent 34%, var(--paper) 56%, var(--paper));
+    animation: introIn .5s ease-out both;
 }
+@keyframes introIn { from { opacity: 0; } to { opacity: 1; } }
 #intro[hidden] { display: none; }
-#intro .inner {
-    position: relative; width: 100%; max-width: 320px; padding: 24px 22px 20px;
-    text-align: center; background: var(--panel);
-    border: 3.5px solid var(--ink); box-shadow: 4px 4px 0 var(--ink);
-    animation: sheetIn .4s cubic-bezier(.2, 1.3, .4, 1) both;
-}
+/* there is no round yet, so nothing that counts one belongs on screen */
+body.waiting #hud { display: none; }
 #intro h1 {
     margin: 0; font-family: var(--font-display); font-weight: 400;
-    font-size: clamp(38px, 12vw, 50px); line-height: 1; letter-spacing: .02em;
+    font-size: clamp(46px, 17vw, 74px); line-height: .92; letter-spacing: .02em;
+    text-shadow: 3px 3px 0 rgba(244, 179, 44, .55);
 }
 #intro p {
-    margin: 10px 0 0; font-size: 14px; font-weight: 700; line-height: 1.5; opacity: .72;
+    margin: 12px 0 0; max-width: 300px;
+    font-size: 14px; font-weight: 700; line-height: 1.5; opacity: .72;
 }
-#intro .btn { margin-top: 18px; }
+#intro .btn { margin-top: 20px; width: 100%; max-width: 250px; }
 
 /* ============================================================
    THE VERDICT
@@ -312,33 +319,30 @@ body {
    nor with each other, and a degree or two of tilt - which is the whole
    difference between a dialog and a doodle.
    ============================================================ */
-.plate, #mute, #clock, #card .inner, #intro .inner, .btn, #ribbon {
+.plate, #mute, #clock, #card .inner, .btn, #ribbon {
     border-radius: 22px 9px 19px 12px / 11px 20px 10px 23px;
 }
-.plate, #mute, #clock, #card .inner, #intro .inner, .btn { position: relative; }
-.plate::before, #mute::before, #clock::before, #card .inner::before, #intro .inner::before, .btn::before,
-.plate::after,  #mute::after,   #clock::after,  #card .inner::after,  #intro .inner::after, .btn::after {
+.plate, #mute, #clock, #card .inner, .btn { position: relative; }
+.plate::before, #mute::before, #clock::before, #card .inner::before, .btn::before,
+.plate::after,  #mute::after,   #clock::after,  #card .inner::after,  .btn::after {
     content: ''; position: absolute; pointer-events: none;
     border: 2.4px solid var(--ink);
 }
 /* the inset drifts round rather than sitting evenly, so the second line runs
    wide on one side and tight on the other, the way an overdrawn box does */
-.plate::after, #mute::after, #clock::after, #card .inner::after, #intro .inner::after, .btn::after {
+.plate::after, #mute::after, #clock::after, #card .inner::after, .btn::after {
     inset: -4px -1px -2px -3px; opacity: .34;
     border-radius: 10px 21px 11px 20px / 20px 11px 22px 10px;
     transform: rotate(1.15deg);
 }
-.plate::before, #mute::before, #clock::before, #card .inner::before, #intro .inner::before, .btn::before {
+.plate::before, #mute::before, #clock::before, #card .inner::before, .btn::before {
     inset: -1px -3px -4px -1px; opacity: .17;
     border-radius: 19px 13px 23px 9px / 13px 22px 9px 19px;
     transform: rotate(-.95deg);
 }
 #card .inner::after  { inset: -6px -2px -3px -5px; border-width: 3px; transform: rotate(-.7deg); }
 #card .inner::before { inset: -2px -5px -6px -2px; border-width: 2.6px; transform: rotate(1deg); }
-#intro .inner::after  { inset: -6px -2px -3px -5px; border-width: 3px; transform: rotate(-.7deg); }
-#intro .inner::before { inset: -2px -5px -6px -2px; border-width: 2.6px; transform: rotate(1deg); }
-#intro .inner { rotate: -.5deg; background-image: repeating-linear-gradient(48deg,
-    rgba(64, 92, 122, .05) 0 1.5px, transparent 1.5px 7px); }
+#intro h1 { rotate: -1.4deg; }
 #ribbon { z-index: 3; }           /* not underneath the card's extra passes */
 /* a tilt each, so the row never lines up like a toolbar. These are the
    independent rotate property on purpose: transform is spoken for by the
@@ -433,11 +437,9 @@ body {
     <div id="prompt">Draw a circle around the dot</div>
 
     <div id="intro">
-        <div class="inner">
-            <h1>Perfect Circle</h1>
-            <p>Draw the shape around the dot &mdash; one unbroken lap, before the clock runs out.</p>
-            <button class="btn" id="play">Play</button>
-        </div>
+        <h1>Perfect<br>Circle</h1>
+        <p>Draw the shape around the dot &mdash; one unbroken lap, before the clock runs out.</p>
+        <button class="btn" id="play">Play</button>
     </div>
 
     <div id="card" hidden>
@@ -458,7 +460,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v68';
+const APP_VERSION = 'v70';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -1356,7 +1358,8 @@ const BANNER_MS = 1250;             // as long as the round announcement is on s
 let demoT0 = now(), idleT0 = now();
 // Every round deals its own shape, so the lap is not a reminder any more - it
 // is the only way to know what was asked for. It runs until they start.
-const demoOn = () => run.live && !drawing && !pts.length && card.hidden;
+let showingIntro = true;
+const demoOn = () => (run.live || showingIntro) && !drawing && !pts.length && card.hidden;
 function drawDemo(ms, cx, cy) {
     if (ms < demoT0) return;                  // waiting for the banner to clear
     const t = ((ms - demoT0) / 1000) % DEMO_CYCLE;
@@ -2176,12 +2179,17 @@ fit();
 frame();
 // nothing starts until Play is pressed, which is also what opens the audio
 promptEl.classList.add('gone');          // and nothing is said behind the intro
+run.form = 'circle';                     // what the lap behind the title draws
+document.body.classList.add('waiting');
+view = { y: -H * .19, k: 1 };            // lifted clear of the words
 const introEl = document.getElementById('intro');
 document.getElementById('play').addEventListener('click', e => {
     e.stopPropagation();
     startSession();
     audioNow();
+    showingIntro = false;
     introEl.hidden = true;
+    document.body.classList.remove('waiting');
     startRound(1);
 });
 draw();
