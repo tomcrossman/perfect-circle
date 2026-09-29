@@ -73,7 +73,7 @@ body {
 /* what to do, until you have done it once */
 #prompt {
     position: absolute; left: 0; right: 0; bottom: 10%; z-index: 2;
-    text-align: center; pointer-events: none;
+    text-align: center; pointer-events: none; padding: 0 22px;
     font-family: var(--font-display); font-size: clamp(19px, 5.4vw, 26px); letter-spacing: .03em;
     color: var(--ink); opacity: .62;
     transition: opacity .2s;
@@ -169,8 +169,75 @@ body {
 }
 #version { position: absolute; bottom: 8px; right: 10px; z-index: 3;
            font-size: 9px; font-weight: 800; letter-spacing: .1em; opacity: .3; }
+
+/* ============================================================
+   THE RUN
+   ============================================================ */
+#hud { gap: 6px; }
+.plate.mid { font-size: 20px; opacity: .95; }
+/* the clock, when the round has one */
+#clock {
+    position: absolute; top: 92px; left: 50%; transform: translateX(-50%); z-index: 3;
+    width: min(240px, 70vw); height: 15px; display: none;
+    background: rgba(36,31,46,.12); border: 2.5px solid var(--ink); border-radius: 8px;
+    overflow: hidden; box-shadow: var(--pop);
+}
+#clock.on { display: block; }
+#clock i { display: block; height: 100%; width: 100%; background: var(--gold); }
+#clock.low i { background: var(--danger); }
+#clock.low { animation: lowPulse .3s ease-in-out infinite alternate; }
+@keyframes lowPulse { from { transform: translateX(-50%) scale(1); }
+                      to   { transform: translateX(-50%) scale(1.05); } }
+
+/* what this round is going to do to you */
+#twists {
+    position: absolute; top: 62px; left: 0; right: 0; z-index: 3;
+    display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;
+    padding: 0 14px; pointer-events: none;
+}
+.twist {
+    font-size: 10px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase;
+    padding: 4px 9px 3px; color: var(--panel); background: var(--ink);
+    border-radius: 9px; box-shadow: 2px 2px 0 rgba(36,31,46,.25);
+    animation: twistIn .4s cubic-bezier(.2,1.5,.4,1) both;
+}
+@keyframes twistIn { from { transform: translateY(-8px) scale(.8); opacity: 0; }
+                     to   { transform: none; opacity: 1; } }
+
+/* the round you are on, announced then faded */
+#banner {
+    position: absolute; left: 0; right: 0; top: 34%; z-index: 4;
+    text-align: center; pointer-events: none; opacity: 0;
+    font-family: var(--font-display); letter-spacing: .03em; color: var(--ink);
+}
+#banner .r { display: block; font-size: clamp(38px, 12vw, 60px); line-height: 1; }
+#banner .need { display: block; font-size: 17px; opacity: .6; margin-top: 2px; }
+#banner.go { animation: bannerGo 1.25s ease-out both; }
+@keyframes bannerGo {
+    0%   { transform: scale(.7); opacity: 0; }
+    18%  { transform: scale(1); opacity: 1; }
+    72%  { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1.08); opacity: 0; }
+}
+
+/* the verdict, round by round */
+#pass { margin: 4px 0 0; font-size: 12px; font-weight: 900; letter-spacing: .04em; }
+#pass .ok { color: var(--good); }
+#pass .no { color: var(--danger); }
+#card.failed #score { color: var(--danger); }
+#card.failed .inner { border-color: var(--danger); }
+#summary { display: none; margin: 10px 0 0; }
+#card.failed #summary { display: block; }
+#card.failed #note { display: none; }
+.tot {
+    display: flex; justify-content: center; gap: 18px; margin-top: 2px;
+    font-family: var(--font-display); font-size: 27px; letter-spacing: .02em;
+}
+.tot span { display: block; font-family: var(--font); font-size: 10px; font-weight: 900;
+            letter-spacing: .07em; text-transform: uppercase; opacity: .5; }
 </style>
 </head>
+
 <body>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -182,13 +249,18 @@ body {
         <path d="M 3.8 2.6 H 1.8 V 4.2 C 1.8 5.5, 2.8 6.2, 3.8 6.2" fill="none"
               stroke="currentColor" stroke-width="1.3"/>
     </symbol>
+    <symbol id="i-star" viewBox="0 0 14 14">
+        <path d="M 7 1.2 L 8.8 5.2 L 13 5.7 L 9.8 8.6 L 10.7 12.8 L 7 10.6 L 3.3 12.8
+                 L 4.2 8.6 L 1 5.7 L 5.2 5.2 Z"/>
+    </symbol>
 </svg>
 
 <div id="app">
     <canvas id="pad"></canvas>
 
     <div id="hud">
-        <div class="plate"><svg class="ico"><use href="#i-cup"/></svg><span id="best-val">0.0</span></div>
+        <div class="plate"><svg class="ico"><use href="#i-star"/></svg><span id="total-val">0</span></div>
+        <div class="plate mid"><svg class="ico"><use href="#i-cup"/></svg><span id="best-val">0</span></div>
         <button id="mute" aria-label="Sound on or off">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#241F2E"
                  stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
@@ -199,6 +271,10 @@ body {
         </button>
     </div>
 
+    <div id="clock"><i></i></div>
+    <div id="twists"></div>
+    <div id="banner"></div>
+
     <div id="live">0.0</div>
     <div id="prompt">Draw a circle around the dot</div>
 
@@ -208,9 +284,16 @@ body {
             <div class="cheer"></div>
             <span id="score">0.0<span class="pc">%</span></span>
             <p id="rating">Wonky</p>
+            <p id="pass"></p>
             <p id="note"></p>
-            <div id="bestline"><svg class="ico"><use href="#i-cup"/></svg>Best <span id="card-best">0.0</span>%</div>
-            <button class="btn" id="again">Again!</button>
+            <div id="summary">
+                <div class="tot">
+                    <div><span>Rounds</span><b id="sum-rounds">0</b></div>
+                    <div><span>Score</span><b id="sum-total">0</b></div>
+                </div>
+                <div id="bestline"><svg class="ico"><use href="#i-cup"/></svg>Best <span id="card-best">0</span></div>
+            </div>
+            <button class="btn" id="again">Round 2</button>
         </div>
     </div>
 
@@ -218,11 +301,11 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v3';
+const APP_VERSION = 'v6';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
-   SOUND - a chime pitched by how round you were
+   SOUND
    ============================================================ */
 const AC = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null, master = null, soundOn = true;
@@ -250,33 +333,25 @@ function tone(t0, { freq, to, dur = .18, type = 'triangle', vol = .2, at = 0 }) 
     o.connect(g); g.connect(master);
     o.start(s); o.stop(s + dur + .02);
 }
+const safely = fn => { if (!soundOn) return; try { fn(audioNow()); } catch (e) { /* no audio here */ } };
 // the better the circle, the higher and happier the chime
-function chime(score) {
-    if (!soundOn) return;
-    try {
-        const t = audioNow();
-        const base = 300 + score * 5.2;
-        [0, 4, 7].slice(0, score > 80 ? 3 : score > 55 ? 2 : 1).forEach((semi, i) =>
-            tone(t, { freq: base * Math.pow(2, semi / 12), dur: .34, vol: .19, at: i * .07 }));
-        if (score < 40) tone(t, { freq: 190, to: 90, dur: .3, type: 'sawtooth', vol: .14 });
-    } catch (e) { /* no audio here, never mind */ }
-}
-function fanfare() {
-    if (!soundOn) return;
-    try {
-        const t = audioNow();
-        [523, 659, 784, 1046, 1318].forEach((f, i) =>
-            tone(t, { freq: f, dur: .4, vol: .2, at: i * .09 }));
-        [784, 1046, 1568].forEach(f => tone(t, { freq: f, dur: .9, type: 'square', vol: .1, at: .46 }));
-    } catch (e) { /* no audio here, never mind */ }
-}
-function buzz() {
-    if (!soundOn) return;
-    try { tone(audioNow(), { freq: 210, to: 110, dur: .22, type: 'sawtooth', vol: .16 }); }
-    catch (e) { /* no audio here, never mind */ }
-}
+const chime = score => safely(t => {
+    const base = 300 + score * 5.2;
+    [0, 4, 7].slice(0, score > 80 ? 3 : score > 55 ? 2 : 1).forEach((semi, i) =>
+        tone(t, { freq: base * Math.pow(2, semi / 12), dur: .34, vol: .19, at: i * .07 }));
+});
+const fanfare = () => safely(t => {
+    [523, 659, 784, 1046, 1318].forEach((f, i) => tone(t, { freq: f, dur: .4, vol: .2, at: i * .09 }));
+    [784, 1046, 1568].forEach(f => tone(t, { freq: f, dur: .9, type: 'square', vol: .1, at: .46 }));
+});
+const buzz = () => safely(t => tone(t, { freq: 210, to: 110, dur: .22, type: 'sawtooth', vol: .16 }));
+const knell = () => safely(t => {
+    [330, 262, 196].forEach((f, i) => tone(t, { freq: f, dur: .5, type: 'sawtooth', vol: .16, at: i * .15 }));
+});
+const tick = () => safely(t => tone(t, { freq: 1200, dur: .04, type: 'square', vol: .1 }));
+
 const muteBtn = document.getElementById('mute');
-function applySound() { muteBtn.classList.toggle('muted', !soundOn); }
+const applySound = () => muteBtn.classList.toggle('muted', !soundOn);
 muteBtn.addEventListener('click', e => {
     e.stopPropagation();
     soundOn = !soundOn;
@@ -293,12 +368,15 @@ const cv = document.getElementById('pad'), ctx = cv.getContext('2d');
 const promptEl = document.getElementById('prompt');
 const liveEl = document.getElementById('live');
 const card = document.getElementById('card');
+const clockEl = document.getElementById('clock'), clockFill = clockEl.querySelector('i');
+const twistEl = document.getElementById('twists');
+const bannerEl = document.getElementById('banner');
 
-let W = 0, H = 0, CX = 0, CY = 0, DOT = 7;
-let pts = [], drawing = false, verdict = null;
+let W = 0, H = 0, CX = 0, CY = 0;
+const DOT = 7;
 // where the drawing is shown: straight on while you draw, lifted and shrunk
 // into the space above the verdict once you have let go
-let view = { y: 0, k: 1 }, viewTo = { y: 0, k: 1 }, viewAnim = 0;
+let view = { y: 0, k: 1 }, viewAnim = 0;
 
 function fit() {
     const dpr = Math.min(3, window.devicePixelRatio || 1);
@@ -311,17 +389,79 @@ function fit() {
 addEventListener('resize', fit);
 
 /* ============================================================
+   THE RUN
+
+   One circle is a party trick. A run of them, with the bar rising and
+   something new getting in the way every few rounds, is a game you can
+   lose - which is the only reason to draw a second one.
+   ============================================================ */
+const TWISTS = {
+    clock: { from: 3,  name: 'Clock' },
+    fade:  { from: 5,  name: 'Fading ink' },
+    drift: { from: 7,  name: 'Drifting dot' },
+    swarm: { from: 9,  name: 'Swarm' },
+};
+const TWIST_KEYS = Object.keys(TWISTS);
+// the bar climbs quickly at first and then creeps, so it is always just
+// out of reach without ever becoming arithmetic
+const passMark = r => 88 - 48 * Math.pow(.88, r - 1);
+// how many of the unlocked ones are thrown at you at once
+const twistCount = r => Math.min(4, 1 + Math.floor((r - 3) / 4));
+
+const run = { round: 0, total: 0, live: false, twists: [], limit: 0, drift: 0, swarmN: 0 };
+const has = k => run.twists.includes(k);
+
+function rollTwists(r) {
+    const pool = TWIST_KEYS.filter(k => r >= TWISTS[k].from);
+    if (!pool.length) return [];
+    const want = Math.min(pool.length, twistCount(r));
+    // the newest one is always in, so an unlock is never announced and then withheld
+    const fresh = pool.filter(k => TWISTS[k].from === r);
+    const picked = [...fresh];
+    const rest = pool.filter(k => !picked.includes(k));
+    while (picked.length < want && rest.length) picked.push(rest.splice(Math.random() * rest.length | 0, 1)[0]);
+    return TWIST_KEYS.filter(k => picked.includes(k));
+}
+
+/* ---- the dot, which does not always stay still ---------------------- */
+let roundT0 = 0, raf = 0;
+const now = () => performance.now();
+function dotAt(ms) {
+    if (!has('drift')) return [CX, CY];
+    const t = (ms - roundT0) / 1000, a = run.drift;
+    return [CX + Math.sin(t * .78) * a, CY + Math.cos(t * .57) * a * .8];
+}
+
+/* ---- the swarm: nothing to hit, just harder to judge a line against -- */
+let swarm = [];
+function seedSwarm(n) {
+    swarm = [];
+    for (let i = 0; i < n; i++) {
+        const a = Math.random() * Math.PI * 2, r = 60 + Math.random() * (Math.min(W, H) * .42);
+        swarm.push({ a, r, sp: (Math.random() - .5) * .5, wob: 14 + Math.random() * 26,
+                     ph: Math.random() * 7, sz: 4 + Math.random() * 4 });
+    }
+}
+function swarmAt(ms) {
+    const t = (ms - roundT0) / 1000;
+    return swarm.map(s => {
+        const a = s.a + s.sp * t, r = s.r + Math.sin(t * .8 + s.ph) * s.wob;
+        return [CX + Math.cos(a) * r, CY + Math.sin(a) * r, s.sz];
+    });
+}
+
+/* ============================================================
    SCORING
 
-   Every point is filed by its angle from the dot, so a slow patch of
-   the stroke does not count for more than a fast one, and the gaps
-   show up on their own. What is left is how much the radius wandered.
+   Every point is filed by its angle from the dot, so a slow patch of the
+   stroke counts for no more than a fast one and the gaps show up on their
+   own. Each point remembers where the dot was at the time, so a drifting
+   one is judged fairly. What is left is how much the radius wandered.
    ============================================================ */
 const BINS = 180;                   // two degrees each
 const MIN_R = 26;                   // nothing drawn on top of the dot counts
 const MIN_MEAN = 46;                // and a tiny circle is not an achievement
 const GAP_ALLOW = 2;                // bins you may leave empty and still be round
-
 const binOf = a => ((Math.floor((a + Math.PI) / (2 * Math.PI) * BINS) % BINS) + BINS) % BINS;
 
 function judge(points) {
@@ -330,7 +470,7 @@ function judge(points) {
     let sweep = 0, pa = null, pr = 0, inside = false;
 
     for (const p of points) {
-        const dx = p[0] - CX, dy = p[1] - CY;
+        const dx = p[0] - p[2], dy = p[1] - p[3];
         const r = Math.hypot(dx, dy);
         if (r < MIN_R) { inside = true; break; }
         const a = Math.atan2(dy, dx);
@@ -347,8 +487,8 @@ function judge(points) {
             sweep += d;
             const steps = Math.max(1, Math.ceil(Math.abs(d) / (Math.PI * 2 / BINS)));
             for (let i = 1; i <= steps; i++) {
-                const f = i / steps, b = binOf(pa + d * f);
-                sum[b] += pr + (r - pr) * f; cnt[b]++;
+                const b = binOf(pa + d * (i / steps));
+                sum[b] += pr + (r - pr) * (i / steps); cnt[b]++;
             }
         }
         pa = a; pr = r;
@@ -368,16 +508,16 @@ function judge(points) {
     let v = 0;
     for (let i = 0; i < BINS; i++) if (cnt[i]) { const d = sum[i] / cnt[i] - mean; v += d * d; }
     const sd = Math.sqrt(v / n);
-    // a human drawing carefully lands around 1.5% off; the curve turns that
-    // into the high eighties and leaves the nineties genuinely hard
+    // a human drawing carefully lands around 1.5% off; the curve turns that into
+    // the high eighties and leaves the nineties genuinely hard
     const score = 100 * Math.pow(Math.max(0, 1 - sd / mean), 8);
-    return { ok: true, score: Math.max(0, Math.min(100, score)), mean, sd };
+    return { ok: true, score: Math.max(0, Math.min(100, score)), mean };
 }
 
 // the running mean while the pen is still down, for the live colouring
 function meanSoFar(points) {
     let t = 0;
-    for (const p of points) t += Math.hypot(p[0] - CX, p[1] - CY);
+    for (const p of points) t += Math.hypot(p[0] - p[2], p[1] - p[3]);
     return points.length ? t / points.length : 0;
 }
 
@@ -393,55 +533,91 @@ function shade(off) {
 /* ============================================================
    DRAWING IT ALL
    ============================================================ */
+let pts = [], drawing = false, verdict = null, penT0 = 0;
+const FADE_MS = 620;                // how long your line lasts, when it does not
+
 function draw() {
+    const ms = now();
     ctx.clearRect(0, 0, W, H);
     ctx.save();
     ctx.translate(CX, CY + view.y);
     ctx.scale(view.k, view.k);
     ctx.translate(-CX, -CY);
 
-    // the dot you go round
+    // the crowd, when there is one
+    if (has('swarm') && !(verdict && verdict.ok)) {
+        ctx.fillStyle = 'rgba(36,31,46,.3)';
+        for (const [x, y, s] of swarmAt(ms)) {
+            ctx.beginPath(); ctx.arc(x, y, s, 0, Math.PI * 2); ctx.fill();
+        }
+    }
+
+    // where the dot has wandered, so you can see what you were chasing
+    const [dx, dy] = verdict && verdict.ok && pts.length ? [pts[pts.length - 1][2], pts[pts.length - 1][3]]
+                                                         : dotAt(ms);
+    if (has('drift') && pts.length > 1) {
+        ctx.strokeStyle = 'rgba(36,31,46,.2)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(pts[0][2], pts[0][3]);
+        for (const p of pts) ctx.lineTo(p[2], p[3]);
+        ctx.stroke();
+    }
     ctx.beginPath();
-    ctx.arc(CX, CY, DOT, 0, Math.PI * 2);
+    ctx.arc(dx, dy, DOT, 0, Math.PI * 2);
     ctx.fillStyle = '#241F2E';
     ctx.fill();
 
-    // what it should have looked like, once it has been judged
-    if (verdict && verdict.ok) {
+    // the line you should have drawn: the radius you held on average, kept
+    // around wherever the dot was at the time
+    if (verdict && verdict.ok && pts.length > 1) {
         ctx.save();
         ctx.setLineDash([7, 9]);
-        ctx.strokeStyle = 'rgba(36,31,46,.42)';
+        ctx.strokeStyle = 'rgba(36,31,46,.45)';
         ctx.lineWidth = 2.5;
         ctx.beginPath();
-        ctx.arc(CX, CY, verdict.mean, 0, Math.PI * 2);
+        pts.forEach((p, i) => {
+            const a = Math.atan2(p[1] - p[3], p[0] - p[2]);
+            const x = p[2] + Math.cos(a) * verdict.mean, y = p[3] + Math.sin(a) * verdict.mean;
+            i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+        });
+        ctx.closePath();
         ctx.stroke();
         ctx.restore();
     }
 
-    if (pts.length < 2) return;
-    const mean = verdict && verdict.ok ? verdict.mean : meanSoFar(pts);
-    ctx.lineWidth = 7;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    for (let i = 1; i < pts.length; i++) {
-        const a = pts[i - 1], b = pts[i];
-        const r = Math.hypot(b[0] - CX, b[1] - CY);
-        ctx.strokeStyle = mean > 0 ? shade(Math.abs(r - mean) / mean) : '#3fa45b';
-        ctx.beginPath();
-        ctx.moveTo(a[0], a[1]);
-        ctx.lineTo(b[0], b[1]);
-        ctx.stroke();
+    if (pts.length > 1) {
+        const mean = verdict && verdict.ok ? verdict.mean : meanSoFar(pts);
+        const fading = has('fade') && drawing;
+        ctx.lineWidth = 7;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        for (let i = 1; i < pts.length; i++) {
+            const a = pts[i - 1], b = pts[i];
+            let alpha = 1;
+            if (fading) {
+                alpha = 1 - (ms - b[4]) / FADE_MS;
+                if (alpha <= 0) continue;
+            }
+            const r = Math.hypot(b[0] - b[2], b[1] - b[3]);
+            ctx.globalAlpha = alpha;
+            ctx.strokeStyle = mean > 0 ? shade(Math.abs(r - mean) / mean) : '#3fa45b';
+            ctx.beginPath();
+            ctx.moveTo(a[0], a[1]);
+            ctx.lineTo(b[0], b[1]);
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
     }
+    // every path out of here goes past this: an early return would leave the
+    // view transform on the stack, and the dot would walk off the screen
     ctx.restore();
 }
 
 // ease the drawing to wherever it needs to be, rather than snapping it there
 function easeView(to) {
-    viewTo = to;
-    const from = { ...view }, t0 = performance.now(), MS = 340;
+    const from = { ...view }, t0 = now(), MS = 340;
     cancelAnimationFrame(viewAnim);
-    const step = now => {
-        const t = Math.min(1, (now - t0) / MS), e = 1 - Math.pow(1 - t, 3);
+    const step = () => {
+        const t = Math.min(1, (now() - t0) / MS), e = 1 - Math.pow(1 - t, 3);
         view = { y: from.y + (to.y - from.y) * e, k: from.k + (to.k - from.k) * e };
         draw();
         if (t < 1) viewAnim = requestAnimationFrame(step);
@@ -457,28 +633,51 @@ function liftView() {
     easeView({ y: (top + bottom) / 2 - CY, k });
 }
 
+/* ---- the frame loop, running whenever a round is live ---------------- */
+let lastTick = 0;
+function frame() {
+    raf = requestAnimationFrame(frame);
+    if (!run.live) return;
+    if (has('clock') && drawing) {
+        const left = run.limit - (now() - penT0) / 1000;
+        clockFill.style.width = `${Math.max(0, left / run.limit) * 100}%`;
+        clockEl.classList.toggle('low', left < run.limit * .3);
+        if (left < run.limit * .3 && now() - lastTick > 240) { lastTick = now(); tick(); }
+        if (left <= 0) return timeUp();
+    }
+    // the dot moving, the swarm drifting and the ink fading all need repainting
+    if (has('drift') || has('swarm') || (has('fade') && drawing)) draw();
+}
+
 /* ============================================================
    THE PEN
    ============================================================ */
 const MIN_STEP = 2.2;               // how far the finger moves before it counts
 
+function sample(x, y) {
+    const ms = now(), [cx, cy] = dotAt(ms);
+    return [x, y, cx, cy, ms];
+}
 function start(x, y) {
-    if (!card.hidden) return;
+    if (!card.hidden || !run.live) return;
     cancelAnimationFrame(viewAnim);
     view = { y: 0, k: 1 };
     drawing = true;
     verdict = null;
-    pts = [[x, y]];
+    penT0 = now();
+    pts = [sample(x, y)];
     promptEl.classList.add('gone');
+    bannerEl.classList.remove('go');
     liveEl.classList.add('on');
     liveEl.textContent = '';
+    if (has('clock')) { clockEl.classList.add('on'); clockFill.style.width = '100%'; }
     draw();
 }
 function move(x, y) {
     if (!drawing) return;
     const last = pts[pts.length - 1];
     if (Math.hypot(x - last[0], y - last[1]) < MIN_STEP) return;
-    pts.push([x, y]);
+    pts.push(sample(x, y));
     draw();
     // a live read of the lap so far, so you can see it closing
     const j = judge(pts);
@@ -488,14 +687,23 @@ function end() {
     if (!drawing) return;
     drawing = false;
     liveEl.classList.remove('on');
+    clockEl.classList.remove('on', 'low');
     verdict = judge(pts);
     draw();
-    if (verdict.ok) show(verdict.score);
-    else {
-        buzz();
-        promptEl.textContent = verdict.why;
-        promptEl.classList.remove('gone');
-    }
+    if (verdict.ok) settle(verdict.score);
+    else { buzz(); promptEl.textContent = verdict.why; promptEl.classList.remove('gone'); }
+}
+function timeUp() {
+    if (!drawing) return;
+    drawing = false;
+    liveEl.classList.remove('on');
+    clockEl.classList.remove('on', 'low');
+    verdict = null;
+    pts = [];
+    draw();
+    buzz();
+    promptEl.textContent = 'Out of time - round again, faster.';
+    promptEl.classList.remove('gone');
 }
 
 let usingTouch = false;
@@ -524,7 +732,7 @@ addEventListener('pointermove', e => {
 addEventListener('pointerup', e => { if (e.pointerType !== 'touch' && !usingTouch) end(); });
 
 /* ============================================================
-   THE VERDICT
+   ROUNDS
    ============================================================ */
 const PORTRAIT = `<svg viewBox="0 0 64 64">
     <path d="M 10 60 C 8 22, 19 2, 32 2 C 45 2, 56 22, 54 60 L 45 57 C 47 36, 46 22, 43 16
@@ -572,9 +780,10 @@ document.querySelector('.cheer').innerHTML = PORTRAIT;
 
 const bestKey = 'pc-best';
 let best = 0;
-try { best = parseFloat(localStorage.getItem(bestKey) || '0') || 0; } catch (e) { best = 0; }
+try { best = parseInt(localStorage.getItem(bestKey) || '0', 10) || 0; } catch (e) { best = 0; }
+const fmt = n => Math.round(n).toLocaleString('en-GB');
 const pc = n => n.toFixed(1);
-document.getElementById('best-val').textContent = pc(best);
+document.getElementById('best-val').textContent = fmt(best);
 
 const RATINGS = [
     [99.2, 'Are you a compass?', 'm-great'],
@@ -587,25 +796,62 @@ const RATINGS = [
     [0,    'That is an egg',     'm-poor'],
 ];
 
-function show(score) {
+function startRound(n) {
+    run.round = n;
+    run.live = true;
+    run.twists = rollTwists(n);
+    run.limit = Math.max(1.9, 3.4 - (n - TWISTS.clock.from) * .11);
+    run.drift = Math.min(44, 13 + (n - TWISTS.drift.from) * 2.8);
+    run.swarmN = Math.min(26, 8 + (n - TWISTS.swarm.from) * 1.6) | 0;
+    roundT0 = now();
+    if (has('swarm')) seedSwarm(run.swarmN);
+    pts = []; verdict = null; drawing = false;
+    view = { y: 0, k: 1 };
+
+    twistEl.innerHTML = run.twists.map(k => `<div class="twist">${TWISTS[k].name}</div>`).join('');
+    bannerEl.innerHTML = `<span class="r">Round ${n}</span>` +
+        `<span class="need">${pc(passMark(n))}% to stay in</span>`;
+    bannerEl.classList.remove('go');
+    void bannerEl.offsetWidth;
+    bannerEl.classList.add('go');
+    promptEl.textContent = n === 1 ? 'Draw a circle around the dot' : 'Round the dot again';
+    promptEl.classList.remove('gone');
+    document.getElementById('total-val').textContent = fmt(run.total);
+    draw();
+}
+
+function settle(score) {
+    const need = passMark(run.round);
+    const passed = score >= need;
     const row = RATINGS.find(r => score >= r[0]);
-    const record = score > best;
+    if (passed) run.total += Math.round(score);
+    const record = !passed && run.total > best;
     if (record) {
-        best = score;
+        best = run.total;
         try { localStorage.setItem(bestKey, String(best)); } catch (e) { /* private mode */ }
     }
-    card.className = row[2] + (record ? ' record' : '');
+    card.className = row[2] + (passed ? '' : ' failed') + (record ? ' record' : '');
     document.getElementById('score').innerHTML = pc(score) + '<span class="pc">%</span>';
-    document.getElementById('rating').textContent = row[1];
+    document.getElementById('rating').textContent = passed ? row[1] : 'Not enough';
+    document.getElementById('pass').innerHTML = passed
+        ? `<span class="ok">Through</span> &middot; needed ${pc(need)}%`
+        : `<span class="no">Needed ${pc(need)}%</span>`;
     document.getElementById('note').textContent =
-        `The dashed ring is the circle you were aiming for - the radius you held on average.`;
-    document.getElementById('card-best').textContent = pc(best);
-    document.getElementById('best-val').textContent = pc(best);
+        'The dashed ring is the circle you were aiming for.';
+    document.getElementById('sum-rounds').textContent = run.round - 1;
+    document.getElementById('sum-total').textContent = fmt(run.total);
+    document.getElementById('card-best').textContent = fmt(best);
+    document.getElementById('total-val').textContent = fmt(run.total);
+    document.getElementById('best-val').textContent = fmt(Math.max(best, run.total));
+    document.getElementById('again').textContent = passed ? `Round ${run.round + 1}` : 'Again!';
+    if (!passed) run.live = false;
+
     setTimeout(() => {
         card.hidden = false;
         liftView();
-        if (record && score > 0) { confetti(30); fanfare(); }
-        else chime(score);
+        if (record) { confetti(30); fanfare(); }
+        else if (passed) chime(score);
+        else knell();
     }, 420);
 }
 
@@ -613,9 +859,8 @@ document.getElementById('again').addEventListener('click', e => {
     e.stopPropagation();
     card.hidden = true;
     card.className = '';
-    pts = []; verdict = null;
-    promptEl.textContent = 'Draw a circle around the dot';
-    promptEl.classList.remove('gone');
+    if (run.live) startRound(run.round + 1);
+    else { run.total = 0; startRound(1); }
     easeView({ y: 0, k: 1 });
 });
 
@@ -638,6 +883,8 @@ function confetti(n) {
 }
 
 fit();
+startRound(1);
+frame();
 
 /* offline, once it is served over http(s) */
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
