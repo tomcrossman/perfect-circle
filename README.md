@@ -52,8 +52,20 @@ round 12.
 | 4 | Fading ink | Your line disappears behind you, so you cannot close the loop by eye |
 | 5 | Which way round | The round names a direction, and going the other way is not a lap |
 | 6 | Drifting dot | The dot wanders while you draw, and you are judged against where it was at the time |
+| 7 | Blind | Nothing appears on the paper at all until you let go |
 | 8 | Swarm | Decoy dots drift about. Nothing to hit - they just make a line hard to judge |
-| 10 | Blind | Nothing appears on the paper at all until you let go |
+
+The blind one lands on round 7 because that is the last round that deals a
+single twist, so it gets a page to itself rather than arriving on top of
+something else.
+
+The drifting dot is the only one of these that changes the score rather than
+the view, and it was the only one whose cost grew faster than the bar it had
+to clear. A machine-perfect lap round where the dot started - ignoring the
+wander entirely - scored 85 on round 6, 60 on round 14 and 52 on round 20,
+against bars of 54, 72 and 80: past about round 12 it was not a harder round,
+it was an unwinnable one. The wander is held near a constant handicap now, so
+the round gets harder because the bar rises, which is the job of the bar.
 
 ## The shapes
 
@@ -116,8 +128,9 @@ wobblier the worse you did, upright and clean at the top of the range - and
 puts a face in it.
 
 The shape is what you drew; the face is whether it got you through, and those
-are not the same question. Each band has its own pool of lines, and the bad
-ones have the most, because they are the funny ones. Down in the bottom bands
+are not the same question. Each band has two pools of lines, one for
+clearing the bar and one for missing it, and they differ by shape: the pass
+pools are the ones you see most, since a run is mostly rounds you survived. Down in the bottom bands
 the shape's own jokes join the generic ones, so a bad snowman gets told it is a
 peanut rather than that it is a blob.
 
