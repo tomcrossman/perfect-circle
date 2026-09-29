@@ -466,7 +466,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v51';
+const APP_VERSION = 'v52';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -1146,6 +1146,9 @@ function drawWay(cx, cy) {
 const DEMO = { sweep: 2.2, hold: .5, fade: .45, gap: .7 };
 const DEMO_CYCLE = DEMO.sweep + DEMO.hold + DEMO.fade + DEMO.gap;
 const IDLE_WAIT = 4.5;              // seconds of nothing before it offers again
+// a rejection clears sooner than that: you have read it long before you have
+// sat there doing nothing for four and a half seconds
+const REJECT_WAIT = 1.8;
 const BANNER_MS = 1250;             // as long as the round announcement is on screen
 let taught = false, demoT0 = now(), idleT0 = now();
 // Before the first stroke it just runs, on any round it comes back if they
@@ -1383,7 +1386,7 @@ let lastTick = 0;
 function frame() {
     raf = requestAnimationFrame(frame);
     if (rejected && run.live && !drawing && card.hidden
-        && (now() - idleT0) / 1000 > IDLE_WAIT) forgetAttempt();
+        && (now() - idleT0) / 1000 > REJECT_WAIT) forgetAttempt();
     if (run.live && drawing) {
         const left = run.limit - (now() - penT0) / 1000;
         clockFill.style.width = `${Math.max(0, left / run.limit) * 100}%`;
