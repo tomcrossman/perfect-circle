@@ -457,7 +457,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v39';
+const APP_VERSION = 'v40';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -941,37 +941,6 @@ function shade(off) {
    ============================================================ */
 let pts = [], drawing = false, verdict = null, penT0 = 0, liveJ = null;
 
-/* ---- the page, doing something while you think ------------------------
-   Faint rings opening on the paper at random - which is the shape of the
-   whole game, and the nearest thing to rain on a sheet of squared paper.
-   They pull right back while the pen is down so they never compete with the
-   line, and they live outside the view transform so they stay put on the
-   page when the drawing lifts to make room for the verdict. */
-const ripples = [];
-const RIPPLE_EVERY = 820, RIPPLE_LIFE = 2700;
-let rippleAt = 0;
-function drawRipples(ms) {
-    if (ms - rippleAt > RIPPLE_EVERY) {
-        rippleAt = ms;
-        ripples.push({ t0: ms, x: 26 + Math.random() * Math.max(1, W - 52),
-                       y: 74 + Math.random() * Math.max(1, H - 150),
-                       r: 40 + Math.random() * 66 });
-    }
-    while (ripples.length && ms - ripples[0].t0 > RIPPLE_LIFE) ripples.shift();
-    ctx.save();
-    ctx.strokeStyle = '#405C7A';
-    for (const q of ripples) {
-        const e = (ms - q.t0) / RIPPLE_LIFE;
-        if (e < 0 || e > 1) continue;
-        ctx.globalAlpha = (1 - e) * Math.min(1, e * 7) * (drawing ? .05 : .17);
-        ctx.lineWidth = 2.6 * (1 - e) + .7;
-        ctx.beginPath();
-        ctx.arc(q.x, q.y, 5 + q.r * e, 0, Math.PI * 2);
-        ctx.stroke();
-    }
-    ctx.restore();
-}
-
 /* ---- showing them what to do -----------------------------------------
    A lap of the shape draws itself round the dot, with the hand riding the
    end of it, until the first time they touch the screen. It says what a
@@ -987,7 +956,8 @@ function drawDemo(ms, cx, cy) {
     const e = Math.min(1, t / DEMO.sweep);
     const over = t - DEMO.sweep - DEMO.hold;
     const fade = over > 0 ? Math.max(0, 1 - over / DEMO.fade) : 1;
-    const n = SHAPES[run.shape].n, phi = -Math.PI / 2 + (n ? Math.PI / n : 0);
+    const n = SHAPES[run.shape].n;
+    const phi = -Math.PI / 2 + (n % 2 ? Math.PI / n : 0);
     const R = Math.min(W, H) * .27, STEPS = 160;
     let hx = cx, hy = cy - R;
     ctx.save();
@@ -1030,7 +1000,6 @@ const FADE_MS = 620;                // how long your line lasts, when it does no
 function draw() {
     const ms = now();
     ctx.clearRect(0, 0, W, H);
-    drawRipples(ms);
     ctx.save();
     ctx.translate(CX, CY + view.y);
     ctx.scale(view.k, view.k);
@@ -1182,9 +1151,10 @@ function frame() {
         if (left < run.limit * .3 && now() - lastTick > 240) { lastTick = now(); tick(); }
         if (left <= 0) return timeUp();
     }
-    // there is always something moving now - if nothing else, the rings
-    // opening on the paper - so the frame simply always paints
-    draw();
+    // the dot moving, the swarm drifting, the ink fading, the demo lap and the
+    // burst all need repainting - and the burst outlives the round it ended,
+    // so it is checked whether or not one is still going
+    if (burst || drawing || demoOn() || (run.live && (has('drift') || has('swarm')))) draw();
 }
 
 /* ============================================================
