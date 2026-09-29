@@ -466,7 +466,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v52';
+const APP_VERSION = 'v53';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -878,17 +878,40 @@ const SHAPES = {
     circle:   { n: 0, name: 'circle',   lines: 'circle' },
     triangle: { n: 3, name: 'triangle', lines: 'triangle' },
     square:   { n: 4, name: 'square',   lines: 'square' },
-    // the three you are never offered, and only ever meet on a random round
-    pentagon: { n: 5, name: 'pentagon', lines: 'odd' },
-    hexagon:  { n: 6, name: 'hexagon',  lines: 'odd' },
-    star:     { n: 5, inner: .46, name: 'star',    lines: 'odd' },
-    // and the ones that are only there to be funny
-    fish:     { name: 'fish',     lines: 'odd' },
-    snowman:  { name: 'snowman',  lines: 'odd' },
-    bolt:     { name: 'lightning bolt', lines: 'odd' },
-    heart:    { name: 'heart',    lines: 'odd' },
-    house:    { name: 'house',    lines: 'odd' },
-    cat:      { name: 'cat',      lines: 'odd' },
+    /* The ones you are never offered and only meet on a shuffle round. They
+       share the generic pool for everything above scraping through, and add
+       their own down at the bottom - which is the only band anybody reads. */
+    pentagon: { n: 5, name: 'pentagon', lines: 'odd', jokes: [
+        'That is a house, not a pentagon', 'Five sides was the whole brief',
+        'The Pentagon is not worried', 'Somewhere between four sides and six'] },
+    hexagon:  { n: 6, name: 'hexagon', lines: 'odd', jokes: [
+        'The bees are disappointed', 'That is a nut, and a stripped one',
+        'Six sides. Six.', 'That would not tile anything'] },
+    star:     { n: 5, inner: .46, name: 'star', lines: 'odd', jokes: [
+        'That is a starfish', 'Nobody is wishing on that', 'That star has collapsed',
+        'Five points, loosely interpreted', 'A star, after a long night'] },
+    fish:     { name: 'fish', lines: 'odd', jokes: [
+        'That is a tadpole', 'That fish has been in an accident',
+        'Something the cat brought back', 'That is a sardine, at best',
+        'Drawn by someone who has only heard of fish', 'Gone off'] },
+    snowman:  { name: 'snowman', lines: 'odd', jokes: [
+        'That is a peanut', 'He needs a scarf and a lie down',
+        'Two circles having an argument', 'That is a cottage loaf',
+        'He has melted somewhat', 'That is a figure eight'] },
+    bolt:     { name: 'lightning bolt', lines: 'odd', jokes: [
+        'Zeus would not sign that off', 'Low voltage',
+        'That is a squiggle with ambition', 'That is a very tired Z',
+        'More of a gentle static', 'Struck twice, badly'] },
+    heart:    { name: 'heart', lines: 'odd', jokes: [
+        'Anatomically speaking, no', 'That heart needs seeing to',
+        'That is a peach', 'Love, but wonky', 'Broken, clearly',
+        'A cardiologist is on the way'] },
+    house:    { name: 'house', lines: 'odd', jokes: [
+        'Planning permission denied', 'That is a shed', 'Subsidence',
+        'The roof is going', 'Structurally unsound', 'Sold as seen'] },
+    cat:      { name: 'cat', lines: 'odd', jokes: [
+        'That cat has been in a fight', 'One ear short', 'That is a bear',
+        'The RSPCA would like a word', 'A potato with ears', 'More of a hamster'] },
 };
 // the picker offers three shapes and the shuffle; the rest are its business
 const MODES = ['circle', 'triangle', 'square', 'random'];
@@ -947,6 +970,14 @@ const arc = (cx, cy, r, n, from = 0, to = Math.PI * 2) => {
     }
     return out;
 };
+const oval = (cx, cy, rx, ry, n, from, to) => {
+    const out = [];
+    for (let i = 0; i <= n; i++) {
+        const a = from + (to - from) * i / n;
+        out.push([cx + Math.cos(a) * rx, cy + Math.sin(a) * ry]);
+    }
+    return out;
+};
 const heartRing = n => {
     const out = [];
     for (let i = 0; i < n; i++) {
@@ -958,8 +989,9 @@ const heartRing = n => {
     return out;
 };
 const OUTLINES = {
-    fish: [[[-1.55, -.55], [-.95, 0], [-1.55, .55], [-.6, .5], [.1, .62], [.75, .45],
-            [1.15, .18], [1.3, 0], [1.15, -.18], [.75, -.45], [.1, -.62], [-.6, -.5]]],
+    // a rounded body and a proper forked tail, and nothing else
+    fish: [[[-1.55, -.80], [-.95, 0], [-1.55, .80],
+            ...oval(.02, 0, .95, .70, 40, 2.592, -2.592)]],
     snowman: [arc(0, .38, .70, 44), arc(0, -.60, .46, 36)],
     bolt: [[[.28, -1], [-.62, .18], [-.20, .30], [-.30, 1], [.62, -.20], [.20, -.30]]],
     heart: [heartRing(64)],
@@ -992,6 +1024,23 @@ function bakeOutline(parts) {
     return t;
 }
 for (const k of Object.keys(OUTLINES)) if (SHAPES[k]) SHAPES[k].table = bakeOutline(OUTLINES[k]);
+
+/* Drawn to the same outer radius, a triangle looks a good deal smaller than a
+   circle and a fish smaller again, because what you judge is how much of the
+   page a thing covers, not how far its furthest corner reaches. So each shape
+   measures its own half width and half height the way up it is demonstrated,
+   and the lap is then sized to fit them all into the same box. */
+for (const k of Object.keys(SHAPES)) {
+    const turn = uprightTurn(k);
+    let mx = 0, my = 0;
+    for (let i = 0; i < 720; i++) {
+        const a = i / 720 * Math.PI * 2, r = profile(a, k, turn);
+        mx = Math.max(mx, Math.abs(Math.cos(a) * r));
+        my = Math.max(my, Math.abs(Math.sin(a) * r));
+    }
+    SHAPES[k].halfW = mx || 1;
+    SHAPES[k].halfH = my || 1;
+}
 
 /* Which way up they drew it is their business, so the turn is fitted rather
    than demanded: sweep one sector coarsely, then close in around the best.
@@ -1168,7 +1217,8 @@ function drawDemo(ms, cx, cy) {
     const over = t - DEMO.sweep - DEMO.hold;
     const fade = over > 0 ? Math.max(0, 1 - over / DEMO.fade) : 1;
     const phi = uprightTurn(run.form);
-    const R = Math.min(W, H) * .27, STEPS = 260;
+    const f = SHAPES[run.form], box = Math.min(W * .30, H * .16);
+    const R = box / Math.max(f.halfW, f.halfH), STEPS = 300;
     let hx = cx, hy = cy - R;
     ctx.save();
     // The line is translucent, so anything that paints the same pixel twice
@@ -1808,11 +1858,15 @@ function settle(score) {
     // border, red number, dead eyes and an insult. The miss is still what
     // happened, but the headline is the run - so on a best the celebration
     // leads and the joke about the shape drops to the small print.
-    document.getElementById('rating').textContent = record ? pick(RECORD_LINES) : pick(row[3]);
+    // down in the bottom bands the shape's own jokes join the generic ones, so
+    // a bad snowman gets told it is a peanut rather than that it is a blob
+    const jokes = row[0] <= 50 && SHAPES[run.form].jokes
+        ? row[3].concat(SHAPES[run.form].jokes) : row[3];
+    document.getElementById('rating').textContent = record ? pick(RECORD_LINES) : pick(jokes);
     document.getElementById('pass').innerHTML = passed
         ? `<span class="ok">Through</span> &middot; needed ${pc(need)}%`
         : `<span class="no">Run over</span> &middot; ${pc(score)}%, needed ${pc(need)}%`;
-    document.getElementById('note').textContent = record ? pick(row[3])
+    document.getElementById('note').textContent = record ? pick(jokes)
         : `The dashed line is the ${SHAPES[run.form].name} you were aiming for.`;
     document.getElementById('card-best').textContent = fmt(best);
     showRound(run.round);
