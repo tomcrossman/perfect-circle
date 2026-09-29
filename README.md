@@ -17,16 +17,26 @@ pass mark, and it climbs:
 Round 1 asks for 40%, round 8 for 68%, round 20 for 84%. Miss it and the run
 is over; your score is the total of the rounds you got through.
 
-Every few rounds something new gets in the way, and from then on each round
-draws a random hand from what has been unlocked - one at a time at first,
-all four by round 15.
+A clock runs on every round from the first. Drawing slowly is the one real
+cheat in this game - take long enough and anyone can trace a careful circle -
+so the time it gives you shrinks instead of the clock coming and going:
+
+    seconds = 1.6 + 3.4 * 0.92 ^ (round - 1)
+
+Five seconds on round 1, three on round 10, two and a third on round 20, and
+never quite reaching a floor of 1.6. Running out costs you the attempt and
+nothing else; you simply cannot take your time over it.
+
+That leaves the twists to be about what you can see rather than how long you
+have. Every few rounds one more is unlocked, and from then on each round draws
+a random hand from what is available - one at a time at first, all three by
+round 12.
 
 | From | Twist | What it does |
 | --- | --- | --- |
-| 3 | Clock | A time limit on the lap, from 3.4s down to 1.9s |
-| 5 | Fading ink | Your line disappears behind you, so you cannot close the loop by eye |
-| 7 | Drifting dot | The dot wanders while you draw, and you are judged against where it was at the time |
-| 9 | Swarm | Decoy dots drift about. Nothing to hit - they just make a line hard to judge |
+| 4 | Fading ink | Your line disappears behind you, so you cannot close the loop by eye |
+| 6 | Drifting dot | The dot wanders while you draw, and you are judged against where it was at the time |
+| 8 | Swarm | Decoy dots drift about. Nothing to hit - they just make a line hard to judge |
 
 ## How a circle is scored
 

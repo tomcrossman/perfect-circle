@@ -351,7 +351,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v19';
+const APP_VERSION = 'v20';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -546,21 +546,28 @@ addEventListener('resize', fit);
    something new getting in the way every few rounds, is a game you can
    lose - which is the only reason to draw a second one.
    ============================================================ */
+// The clock is not one of these. Drawing slowly is the one real cheat in this
+// game - take long enough and anyone can trace a careful circle - so it runs
+// every round from the first, and the time it gives you shrinks instead. That
+// leaves these three, which are all about what you can see rather than how long
+// you have, to be the variable part.
 const TWISTS = {
-    clock: { from: 3,  name: 'Clock' },
-    fade:  { from: 5,  name: 'Fading ink' },
-    drift: { from: 7,  name: 'Drifting dot' },
-    swarm: { from: 9,  name: 'Swarm' },
+    fade:  { from: 4,  name: 'Fading ink' },
+    drift: { from: 6,  name: 'Drifting dot' },
+    swarm: { from: 8,  name: 'Swarm' },
 };
 const TWIST_KEYS = Object.keys(TWISTS);
 // the bar climbs quickly at first and then creeps, so it is always just
 // out of reach without ever becoming arithmetic
 const passMark = r => 88 - 48 * Math.pow(.88, r - 1);
 // how many of the unlocked ones are thrown at you at once
-const twistCount = r => Math.min(4, 1 + Math.floor((r - 3) / 4));
+const twistCount = r => Math.min(3, 1 + Math.floor((r - 4) / 4));
+// generous to begin with, and never quite enough later on
+const timeFor = r => 1.6 + 3.4 * Math.pow(.92, r - 1);
 
 const run = { round: 0, total: 0, live: false, twists: [], limit: 0, drift: 0, swarmN: 0 };
 const has = k => run.twists.includes(k);
+// the clock is always on, so nothing has to ask
 
 function rollTwists(r) {
     const pool = TWIST_KEYS.filter(k => r >= TWISTS[k].from);
@@ -827,7 +834,7 @@ function liftView() {
 let lastTick = 0;
 function frame() {
     raf = requestAnimationFrame(frame);
-    if (run.live && has('clock') && drawing) {
+    if (run.live && drawing) {
         const left = run.limit - (now() - penT0) / 1000;
         clockFill.style.width = `${Math.max(0, left / run.limit) * 100}%`;
         clockEl.classList.toggle('low', left < run.limit * .3);
@@ -847,7 +854,7 @@ const MIN_STEP = 2.2;               // how far the finger moves before it counts
 
 // a full bar, sitting there, so you can see what you are up against
 function armClock() {
-    clockEl.classList.toggle('on', has('clock'));
+    clockEl.classList.add('on');
     clockEl.classList.remove('low');
     clockFill.style.width = '100%';
 }
@@ -1030,7 +1037,7 @@ function startRound(n) {
     run.round = n;
     run.live = true;
     run.twists = rollTwists(n);
-    run.limit = Math.max(1.9, 3.4 - (n - TWISTS.clock.from) * .11);
+    run.limit = timeFor(n);
     run.drift = Math.min(44, 13 + (n - TWISTS.drift.from) * 2.8);
     run.swarmN = Math.min(26, 8 + (n - TWISTS.swarm.from) * 1.6) | 0;
     roundT0 = now();
@@ -1039,11 +1046,9 @@ function startRound(n) {
     pts = []; verdict = null; drawing = false;
     view = { y: 0, k: 1 };
 
-    // the clock has a bar with its own icon, so it does not need telling twice
-    twistEl.innerHTML = run.twists.filter(k => k !== 'clock')
-        .map(k => `<div class="twist">${TWISTS[k].name}</div>`).join('');
+    twistEl.innerHTML = run.twists.map(k => `<div class="twist">${TWISTS[k].name}</div>`).join('');
     bannerEl.innerHTML = `<span class="r">Round ${n}</span>` +
-        `<span class="need">${pc(passMark(n))}% to stay in</span>`;
+        `<span class="need">${pc(passMark(n))}% in ${run.limit.toFixed(1)}s</span>`;
     bannerEl.classList.remove('go');
     void bannerEl.offsetWidth;
     bannerEl.classList.add('go');
