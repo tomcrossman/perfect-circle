@@ -398,7 +398,7 @@ body {
 </div>
 
 <script>
-const APP_VERSION = 'v32';
+const APP_VERSION = 'v33';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -477,9 +477,21 @@ const sting = up => safely(t => {
         hiss(t, { hp: 200, lp: 1400, dur: .22, vol: .18, at: .01 });
     }
 });
-const fanfare = () => safely(t => {
-    [523, 659, 784, 1046, 1318].forEach((f, i) => tone(t, { freq: f, dur: .4, vol: .2, at: i * .09 }));
-    [784, 1046, 1568].forEach(f => tone(t, { freq: f, dur: .9, type: 'square', vol: .1, at: .46 }));
+// How a run ends. Up the scale into the chord it was always heading for, or
+// the trombone, which is three notes losing heart and a fourth giving up.
+const jingleWin = () => safely(t => {
+    [523, 659, 784, 1046].forEach((f, i) => tone(t, { freq: f, dur: .17, vol: .2, at: i * .1 }));
+    [784, 1046, 1318].forEach(f => tone(t, { freq: f, dur: .85, type: 'triangle', vol: .17, at: .42 }));
+    [392, 523].forEach(f => tone(t, { freq: f, dur: .9, type: 'sine', vol: .14, at: .42 }));
+    tone(t, { freq: 2093, dur: .5, type: 'square', vol: .05, at: .5 });
+    hiss(t, { hp: 6000, dur: .45, vol: .12, at: .44 });
+});
+const jingleLose = () => safely(t => {
+    [330, 294, 262].forEach((f, i) =>
+        tone(t, { freq: f, to: f * .94, dur: .25, type: 'sawtooth', vol: .15, at: i * .19 }));
+    tone(t, { freq: 262, to: 116, dur: .78, type: 'sawtooth', vol: .18, at: .58 });
+    tone(t, { freq: 131, to: 58, dur: .82, type: 'triangle', vol: .12, at: .58 });
+    hiss(t, { hp: 140, lp: 900, dur: .34, vol: .1, at: .6 });
 });
 const buzz = () => safely(t => tone(t, { freq: 210, to: 110, dur: .22, type: 'sawtooth', vol: .16 }));
 const tick = () => safely(t => tone(t, { freq: 1200, dur: .04, type: 'square', vol: .1 }));
@@ -670,6 +682,47 @@ const GLOVE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 223 217"><g 
 const GLOVE_IMG = new Image();
 GLOVE_IMG.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(GLOVE);
 const GRIP_W = 223, GRIP_H = 217, GRIP_TIPX = 57, GRIP_TIPY = 59, GRIP_SCALE = .62;
+
+/* Except that a drawn-by-hand hand kept looking drawn by hand. The phone
+   already has a pointing one - real artwork, Apple's on iOS - so use that and
+   blit it from an offscreen canvas.
+
+   Where the fingertip sits inside the glyph is different on every platform, so
+   it is measured instead of guessed: render it once, and the topmost opaque
+   pixel is the end of the finger. If there is no colour in what came back
+   there is no emoji font here, and the drawn glove above is still the
+   fallback. */
+const HAND_PX = 128, HAND_SCALE = .95, HAND_ANG = 42 * Math.PI / 180;
+function buildHand() {
+    try {
+        const c = document.createElement('canvas');
+        c.width = c.height = HAND_PX;
+        const x = c.getContext('2d', { willReadFrequently: true });
+        x.font = `${HAND_PX * .8}px "Apple Color Emoji", "Segoe UI Emoji", ` +
+                 `"Noto Color Emoji", sans-serif`;
+        x.textAlign = 'center'; x.textBaseline = 'middle';
+        x.fillText('\u{1F446}', HAND_PX / 2, HAND_PX / 2);
+        const d = x.getImageData(0, 0, HAND_PX, HAND_PX).data;
+        let top = -1, bot = -1, sx = 0, n = 0, coloured = false;
+        for (let yy = 0; yy < HAND_PX; yy++) {
+            for (let xx = 0; xx < HAND_PX; xx++) {
+                const i = (yy * HAND_PX + xx) * 4;
+                if (d[i + 3] < 40) continue;
+                if (top < 0) top = yy;
+                if (yy === top) { sx += xx; n++; }
+                bot = yy;
+                if (Math.max(d[i], d[i+1], d[i+2]) - Math.min(d[i], d[i+1], d[i+2]) > 25)
+                    coloured = true;
+            }
+        }
+        // a missing glyph is a hollow box, and a text fallback has no colour
+        if (!coloured || top < 0 || bot - top < HAND_PX * .3) return null;
+        return { cv: c, tx: n ? sx / n : HAND_PX / 2, ty: top };
+    } catch (e) { return null; }
+}
+let hand = buildHand();
+// emoji come from a system font, but ask again once fonts have settled
+if (document.fonts) document.fonts.ready.then(() => { if (!hand) hand = buildHand(); }).catch(() => {});
 
 /* ============================================================
    SCORING
@@ -874,10 +927,19 @@ function draw() {
 
     // whoever is doing the drawing, at the sharp end of it
     if (drawing && pts.length) {
-        const img = GLOVE_IMG;
-        if (img.complete && img.naturalWidth) {
-            const p = pts[pts.length - 1], k = GRIP_SCALE;
-            ctx.drawImage(img, p[0] - GRIP_TIPX * k, p[1] - GRIP_TIPY * k, GRIP_W * k, GRIP_H * k);
+        const p = pts[pts.length - 1];
+        if (hand) {
+            // turned about the fingertip, so the point of contact stays put
+            const k = HAND_SCALE;
+            ctx.save();
+            ctx.translate(p[0], p[1]);
+            ctx.rotate(-HAND_ANG);
+            ctx.drawImage(hand.cv, -hand.tx * k, -hand.ty * k, HAND_PX * k, HAND_PX * k);
+            ctx.restore();
+        } else if (GLOVE_IMG.complete && GLOVE_IMG.naturalWidth) {
+            const k = GRIP_SCALE;
+            ctx.drawImage(GLOVE_IMG, p[0] - GRIP_TIPX * k, p[1] - GRIP_TIPY * k,
+                          GRIP_W * k, GRIP_H * k);
         }
     }
     // every path out of here goes past this: an early return would leave the
@@ -1201,7 +1263,7 @@ function settle(score) {
     setTimeout(() => {
         card.hidden = false;
         liftView();
-        if (record) { confetti(30); fanfare(); }
+        if (record) { confetti(30); jingleWin(); } else jingleLose();
     }, 440);
 }
 
