@@ -438,7 +438,7 @@ body.waiting #hud { display: none; }
 
     <div id="intro">
         <h1>Perfect<br>Circle</h1>
-        <p>Draw the shape as accurately as you can before the clock runs out!</p>
+        <p>Draw shapes as accurately as you can before the clock runs out!</p>
         <button class="btn" id="play">Play</button>
     </div>
 
@@ -460,7 +460,7 @@ body.waiting #hud { display: none; }
 </div>
 
 <script>
-const APP_VERSION = 'v72';
+const APP_VERSION = 'v73';
 document.getElementById('version').textContent = `Perfect Circle ${APP_VERSION}`;
 
 /* ============================================================
@@ -1138,6 +1138,21 @@ for (const k of Object.keys(SHAPES)) {
     }
     SHAPES[k].halfW = mx || 1;
     SHAPES[k].halfH = my || 1;
+
+    /* And how far there is to travel round it, against a circle enclosing the
+       same average radius. A sword is a long thin cross: at the size you would
+       draw a circle it has half again as much edge to get round, so the same
+       clock was not a harder round, it was a shorter one. The allowance is
+       scaled by this, which measures the pen's journey rather than the shape. */
+    let len = 0, sum = 0, px = 0, py = 0;
+    for (let i = 0; i <= 720; i++) {
+        const a = i / 720 * Math.PI * 2, r = profile(a, k, turn);
+        const x = Math.cos(a) * r, y = Math.sin(a) * r;
+        if (i) len += Math.hypot(x - px, y - py);
+        if (i < 720) sum += r;
+        px = x; py = y;
+    }
+    SHAPES[k].pace = Math.min(1.9, len / (Math.PI * 2 * (sum / 720)));
 }
 
 /* Which way up they drew it is their business, so the turn is fitted rather
@@ -2009,7 +2024,7 @@ function startRound(n) {
     run.round = n;
     run.live = true;
     run.twists = rollTwists(n);
-    run.limit = timeFor(n);
+    run.limit = timeFor(n) * SHAPES[run.form].pace;
     const before = run.form;
     run.form = n === 1 ? pick(OPENERS) : dealFor(n);
     run.repeat = n > 1 && run.form === before;
